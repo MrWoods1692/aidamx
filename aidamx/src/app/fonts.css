@@ -1,0 +1,37 @@
+/* 字体导入 */
+@import url("https://static.zeoseven.com/zsft/442/main/result.css");
+
+/* 添加英文专用字体 */
+@font-face {
+  font-family: "zsft-dx";
+  src: url('https://static.zeoseven.com/zsft/dx/main.woff2') format('woff2'),
+      url('https://static-host.zeoseven.com/zsft/dx/main.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 防止字体加载时的布局偏移 */
+html {
+  font-size: 16px;
+}
+
+/* 字体应用 */
+.maple-font,
+.maple-font *,
+body, input, button, textarea, select {
+  font-family: "Maple Mono NF CN", monospace !important;
+  font-weight: normal;
+  font-size-adjust: 0.5;
+}
+
+/* 英文文本字体应用 */
+.english-text {
+  font-family: "zsft-dx", sans-serif !important;
+  font-size-adjust: 0.5;
+}
+
+/* 确保覆盖所有元素 */
+h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, select {
+  font-family: "Maple Mono NF CN", monospace !important;
+} 

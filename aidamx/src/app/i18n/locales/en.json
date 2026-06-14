@@ -1,0 +1,120 @@
+{
+  "app": {
+    "title": "Code Assistant",
+    "theme": {
+      "light": "Light Mode",
+      "dark": "Dark Mode"
+    },
+    "login": "Login",
+    "logout": "Logout",
+    "switchLanguage": "English",
+    "loginTip": "Click to login"
+  },
+  "chat": {
+    "placeholder": "Type your message...",
+    "send": "Send",
+    "newChat": "New Chat",
+    "selectModel": "Select Model",
+    "modelSelector": {
+      "title": "Select Model",
+      "current": "Current",
+      "empty": "No models available"
+    },
+    "voice": {
+      "preparing": "Preparing voice...",
+      "playing": "Voice playing",
+      "ended": "Voice ended",
+      "failed": "Voice generation failed: ",
+      "fetching": "Fetching voice..."
+    }
+  },
+  "sidebar": {
+    "home": "Home",
+    "skin": "Skin",
+    "settings": "Settings",
+    "profile": "Profile",
+    "conversations": "Chats",
+    "searchChat": "Search chats",
+    "noMatchedChats": "No matched chats",
+    "noChats": "No chats, click \"New Chat\" button to start chatting"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "backToHome": "Back to Home",
+    "welcomeBack": "Welcome Back",
+    "loginDescription": "Sign in to your Code Assistant account",
+    "createAccount": "Create New Account",
+    "registerDescription": "Join Code Assistant for more features",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "emailPlaceholder": "Enter your email",
+    "qqPlaceholder": "Enter your QQ number",
+    "passwordPlaceholder": "Enter your password",
+    "confirmPasswordPlaceholder": "Confirm your password",
+    "forgotPassword": "Forgot Password?",
+    "verificationCode": "Verification Code",
+    "codePlaceholder": "Enter verification code",
+    "getCode": "Get Code",
+    "sending": "Sending...",
+    "retryAfter": "Retry in",
+    "loginButton": "Sign In",
+    "registerButton": "Sign Up",
+    "loginProcess": "Signing in...",
+    "registerProcess": "Signing up...",
+    "createNewAccount": "Create Account",
+    "backToLogin": "Back to Login",
+    "gotQQName": "QQ name fetched",
+    "loadingQQName": "Fetching QQ name...",
+    "completeInfo": "Please complete all fields",
+    "passwordMismatch": "Passwords do not match",
+    "resetPassword": "Reset Password",
+    "resetPasswordButton": "Reset Password",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password",
+    "confirmNewPasswordPlaceholder": "Confirm your new password",
+    "sendResetLink": "Send Reset Link",
+    "resetEmailSent": "Password reset link has been sent to your email",
+    "resetFailed": "Password reset request failed",
+    "enterEmail": "Please enter your email",
+    "forgotPasswordDescription": "Enter your email address and we'll send you a link to reset your password",
+    "invalidToken": "Invalid Reset Link",
+    "tokenExpiredOrInvalid": "The reset link has expired or is invalid",
+    "validatingToken": "Validating reset link...",
+    "fillAllFields": "Please fill in all fields",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "passwordResetSuccessful": "Password reset successful",
+    "redirectingToLogin": "Redirecting to login page in 5 seconds",
+    "success": "Success",
+    "resetting": "Resetting...",
+    "cancel": "Cancel"
+  },
+  "settings": {
+    "language": "Language",
+    "appearance": "Appearance"
+  },
+  "welcome": {
+    "title": "Welcome to AI Assistant",
+    "description": "Explore the infinite possibilities of artificial intelligence. Our AI assistant is always ready to provide intelligent conversation, answer questions, and inspire creativity.",
+    "startButton": "Start Chat",
+    "clickHere": "Click Here"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete"
+  },
+  "feedback": {
+    "likeThank": "Thanks for your like!",
+    "dislikeThank": "Thanks for your feedback!"
+  },
+  "profile": {
+    "registerTime": "Register Time",
+    "username": "Username",
+    "updating": "Updating...",
+    "updateProfile": "Update Profile",
+    "accountSecurity": "Account Security"
+  }
+} 

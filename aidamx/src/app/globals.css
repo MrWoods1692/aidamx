@@ -1,0 +1,867 @@
+/* 仅保留Tailwind导入 */
+@import "tailwindcss";
+
+/* 确保页面充满整个视窗并确保正确滚动 */
+html {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto; /* 允许纵向滚动 */
+  overflow-x: hidden; /* 禁止横向滚动 */
+  transition: background-color 0.2s ease;
+}
+
+/* 全局字体应用 */
+* {
+  font-family: "Maple Mono NF CN", monospace !important;
+  font-weight: normal;
+  box-sizing: border-box; /* 统一使用border-box盒模型 */
+}
+
+/* 确保图标正确显示 */
+svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 防止移动设备键盘弹出时页面跳动 */
+html, body {
+  height: 100%;
+  position: relative;
+  overscroll-behavior: none; /* 防止页面过度滚动 */
+}
+
+body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100vh; /* 使用视口高度 */
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0 !important; /* 防止输入法弹出时的页面上移 */
+  overflow-y: overlay;
+}
+
+/* 确保文本框不会导致页面跳动 */
+textarea, input {
+  border-width: 1px !important;
+  outline-offset: -1px !important;
+  resize: none !important;
+  /* 移除默认聚焦样式 */
+  outline: none !important;
+}
+
+/* 文本区域聚焦状态样式 */
+textarea:focus, input:focus {
+  outline: none !important;
+}
+
+/* 修复iOS和移动设备上的输入框问题 */
+@supports (-webkit-touch-callout: none) {
+  /* 修复iOS输入框问题 */
+  textarea, input {
+    -webkit-appearance: none;
+    appearance: none; /* 添加标准属性 */
+  }
+}
+
+/* 修复输入框容器 */
+.input-container {
+  margin-bottom: 0 !important;
+  padding-bottom: 8px !important;
+}
+
+/* 全局过渡效果 */
+.transition-common {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-timing-function: ease;
+  transition-duration: 200ms;
+}
+
+/* 隐藏滚动条但保持功能 */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* 文本输入容器样式 */
+/* .input-container {
+  transform: translate3d(0,0,0);
+  will-change: transform;
+  backface-visibility: hidden;
+} */
+
+/* 基础样式 */
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 248, 248, 249;
+  --text-primary: 33, 33, 33;
+  --text-secondary: 82, 82, 82;
+  --primary-color: 226, 29, 72;
+  --primary-hover: 243, 74, 106;
+  --primary-color-rgb: 226, 29, 72;
+  --success-color: 0, 200, 83;
+  --warning-color: 255, 171, 0;
+  --error-color: 244, 67, 54;
+  --ai-message-bg: #f8f9fa;
+  --border-color: 220, 220, 225; /* 轻微加深的边框颜色，比原来略深 */
+  --card-bg: 255, 255, 255;   /* 纯白色作为卡片背景 */
+  --sidebar-bg: 255, 255, 255; /* 纯白色作为侧边栏背景 */
+  --input-bg: 255, 255, 255;   /* 保持输入框为纯白色背景 */
+  
+  /* 统一过渡时间 */
+  --transition-speed: 0.2s;
+  --bg-color: #ffffff;
+  --bg-dark: #111111;
+}
+
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 23, 23, 23;
+  --text-primary: 241, 241, 241;
+  --text-secondary: 181, 181, 181;
+  --ai-message-bg: #101010;
+  --primary-color: 100, 108, 255;
+  --primary-hover: 116, 123, 255;
+  --border-color: 82, 90, 105; /* 适中的深色模式边框颜色 */
+  --card-bg: 33, 33, 33;     /* 深色模式卡片背景 */
+  --sidebar-bg: 30, 30, 30;  /* 深色模式侧边栏背景 */
+  --input-bg: 42, 42, 42;    /* 深色模式下使用暗灰色背景 */
+  --bg-color: #111111;
+}
+
+/* 应用全局过渡效果 */
+*, *::before, *::after {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-timing-function: ease;
+  transition-duration: var(--transition-speed);
+}
+
+/* 临时禁用过渡效果的类 */
+.no-transition,
+.no-transition *,
+.no-transition *::before,
+.no-transition *::after {
+  transition: none !important;
+}
+
+/* 确保文字颜色过渡 */
+html, body, p, h1, h2, h3, h4, h5, h6, 
+button, input, textarea, div, span, a {
+  transition: color var(--transition-speed) ease, background-color var(--transition-speed) ease;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background-color: rgb(var(--background-rgb));
+}
+
+/* 自定义组件样式 */
+@layer components {
+  /* 卡片样式 */
+  .ai-card {
+    background-color: rgb(var(--card-bg));
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all var(--transition-speed) ease;
+    padding: 1.25rem;
+    border: 1px solid rgb(var(--border-color));
+    margin-bottom: 1rem;
+  }
+  
+  .ai-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* 侧边栏项目样式 */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    transition: all var(--transition-speed) ease;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    cursor: pointer; /* 添加鼠标指针样式 */
+  }
+  
+  /* 对话项特殊样式 - 添加淡绿色背景，提高优先级 */
+  div.conversation-item {
+    background-color: rgba(209, 250, 229, 0.6); /* 移除!important，允许内联样式覆盖 */
+    cursor: pointer; /* 添加鼠标指针样式 */
+  }
+  
+  .dark div.conversation-item {
+    background-color: rgba(6, 95, 70, 0.2); /* 移除!important，允许内联样式覆盖 */
+    cursor: pointer; /* 添加鼠标指针样式 */
+  }
+  
+  .sidebar-item:hover {
+    background-color: rgba(167, 243, 208, 0.8); /* 鼠标悬停时的淡绿色背景 */
+    cursor: pointer; /* 添加鼠标指针样式 */
+  }
+  
+  /* 绿色主题下对话项的悬停样式 */
+  .green-theme-hover:hover {
+    background-color: rgba(235, 235, 235, 0.9) !important; /* 亮色模式下的浅灰色背景 */
+  }
+  
+  .dark .green-theme-hover:hover {
+    background-color: rgba(40, 40, 40, 0.7) !important; /* 深色模式下的深灰色背景 */
+  }
+  
+  .dark .sidebar-item:hover {
+    background-color: rgba(6, 95, 70, 0.4); /* 深色模式下鼠标悬停时的背景 */
+    cursor: pointer; /* 添加鼠标指针样式 */
+  }
+  
+  /* 聊天输入框样式 */
+  .chat-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
+    border: 1.5px solid rgb(var(--border-color));
+    background-color: rgb(var(--input-bg));
+    outline: none;
+    font-size: 0.95rem;
+    transition: all var(--transition-speed) ease;
+    color: rgb(var(--foreground-rgb));
+  }
+  
+  .chat-input:focus, .chat-input.focused {
+    border-color: rgb(var(--primary-color)) !important;
+    outline: none !important;
+  }
+  
+  /* 导航栏样式 */
+  .navbar {
+    height: var(--navbar-height) !important;
+    background-color: rgb(var(--card-bg)) !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+    position: relative;
+    z-index: 50;
+    border-bottom: 1px solid rgb(var(--border-color));
+  }
+  
+  /* 主按钮样式 */
+  .primary-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: rgb(var(--primary-color));
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+    cursor: pointer; /* 添加手指样式 */
+  }
+  
+  /* 删除悬停效果 */
+  .primary-button:hover {
+    /* 移除原有效果 */
+    background-color: rgb(var(--primary-color));
+    transform: none;
+  }
+  
+  /* 消息样式 */
+  .message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0.75rem;
+    max-width: 80%;
+    background-color: #f3f4f6;
+  }
+  
+  .message-user {
+    margin-left: auto;
+  }
+  
+  .message-assistant {
+    background-color: #f0f4ff;
+  }
+  
+  .dark .message {
+    background-color: #374151;
+  }
+  
+  .dark .message-assistant {
+    background-color: #1e293b;
+  }
+}
+
+/* 添加动画和渐变效果 */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--primary-color), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--primary-color), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--primary-color), 0);
+  }
+}
+
+.gradient-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(90deg, rgb(var(--primary-color)), rgb(var(--primary-hover)));
+}
+
+.floating {
+  animation: float 4s ease-in-out infinite;
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, rgba(var(--primary-color), 0.1), rgba(var(--primary-hover), 0.1));
+}
+
+/* 更新主页标题样式 */
+.title-large {
+  font-size: 3.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+@media (min-width: 768px) {
+  .title-large {
+    font-size: 4.5rem;
+  }
+}
+
+/* 更新卡片悬停效果 */
+.assistant-card {
+  transition: all 0.3s ease;
+}
+
+.assistant-card:hover {
+  transform: translateY(-8px);
+}
+
+/* 移动端适配样式 */
+@media (max-width: 767px) {
+  .navbar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    border-bottom: 1px solid rgb(var(--border-color));
+    z-index: 51 !important; /* 确保导航栏位于最上层 */
+  }
+  
+  /* 主聊天区域在移动端上的样式调整 */
+  .chat-area {
+    padding: 0.75rem;
+  }
+  
+  /* 聊天输入框在移动端上的样式调整 */
+  .chat-input {
+    padding: 0.5rem;
+    margin: 0.5rem;
+  }
+  
+  /* 移动端隐藏部分元素 */
+  .mobile-hidden {
+    display: none;
+  }
+  
+  /* 侧边栏关闭动画 - 通过JavaScript插入这个类来触发动画 */
+  .sidebar-closing {
+    animation: slideOutLeft 0.3s ease-in-out forwards !important;
+  }
+
+  /* 移动端强制隐藏侧边栏 - 高优先级 */
+  html body .sidebar-container .w-16.h-full,
+  html body .sidebar-container .w-64.h-full {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* 只有当特定类存在时才显示 */
+  html body .sidebar-container .w-16.h-full.mobile-visible,
+  html body .sidebar-container .w-64.h-full.mobile-visible {
+    display: flex !important;
+    visibility: visible !important;
+  }
+}
+
+/* 侧边栏项目样式 */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-item:hover {
+  background-color: rgba(var(--primary-color), 0.1);
+}
+
+.conversation-item {
+  font-size: 0.875rem;
+}
+
+/* 移动端点击背景遮罩效果 */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 40;
+  animation: fade-in 0.2s ease-in-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 主按钮样式 */
+.primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgb(var(--primary-color));
+  color: white;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.primary-button:hover {
+  opacity: 0.9;
+}
+
+/* 禁用过渡效果临时类 */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* 绿色主题特殊悬停效果 */
+.green-theme-hover:hover {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* 自定义动画类 */
+@keyframes slideOutLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes slideInLeft {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-in-out;
+}
+
+.animate-slideOutLeft {
+  animation: slideOutLeft 0.3s ease-in-out forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 通知卡片样式 */
+.notification-card {
+  background-color: rgb(var(--card-bg));
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--border-color), 0.5);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.notification-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px -4px rgba(0, 0, 0, 0.12);
+}
+
+.notification-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #3b82f6, #93c5fd);
+}
+
+.notification-card:nth-child(2)::before {
+  background: linear-gradient(to bottom, #22c55e, #86efac);
+}
+
+.notification-card:nth-child(3)::before {
+  background: linear-gradient(to bottom, #eab308, #fde047);
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(59, 130, 246, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: rgb(var(--text-primary, 0, 0, 0));
+}
+
+.notification-message {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: rgb(var(--text-secondary, 100, 100, 100));
+  margin: 0;
+}
+
+.notification-time {
+  font-size: 0.75rem;
+  color: rgb(var(--text-secondary, 150, 150, 150));
+  opacity: 0.8;
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10px;
+  background-color: rgba(var(--border-color), 0.2);
+}
+
+.dark .notification-card {
+  background-color: rgba(var(--card-bg), 0.8);
+  border-color: rgba(var(--border-color), 0.3);
+}
+
+.dark .notification-title {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dark .notification-message {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark .notification-time {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 767px) {
+  .notification-card {
+    padding: 1rem;
+    gap: 0.75rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .notification-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+  
+  .notification-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .notification-message {
+    font-size: 0.8rem;
+  }
+  
+  .notification-time {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+  }
+}
+
+/* 防止桌面端侧边栏闪烁 */
+@media (min-width: 768px) {
+  html body .w-16.h-full,
+  html body .w-64.h-full {
+    visibility: visible !important;
+    display: flex !important;
+    opacity: 1 !important;
+  }
+  /* 防止hidden类在桌面端工作 */
+  html body .w-16.h-full.hidden,
+  html body .w-64.h-full.hidden {
+    display: flex !important;
+  }
+}
+
+/* 在移动端正确隐藏侧边栏 */
+@media (max-width: 767px) {
+  html body .w-16.h-full.hidden,
+  html body .w-64.h-full.hidden {
+    display: none !important;
+  }
+}
+
+/* 确保侧边栏在页面加载前就正确显示 */
+.sidebar-container {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* 在桌面端始终显示侧边栏 */
+@media (min-width: 768px) {
+  .sidebar-container {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  
+  /* 初始可见状态 - 用于页面加载时 */
+  .initial-visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}
+
+/* 移动端侧边栏容器样式 */
+@media (max-width: 767px) {
+  .mobile-sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    z-index: 40;
+    height: calc(100vh - var(--navbar-height));
+  }
+}
+
+/* 为桌面端调整侧边栏高度 - 没有导航栏时 */
+@media (min-width: 768px) {
+  .sidebar-container .w-16.h-full,
+  .sidebar-container .w-64.h-full {
+    height: 100vh !important;
+  }
+}
+
+/* 为欢迎页面导航栏设置透明背景 */
+.welcome-navbar {
+  background-color: transparent !important;
+  border-bottom: none !important;
+}
+
+/* 导航栏容器样式 */
+.navbar-container {
+  transition: height 0.3s, opacity 0.3s;
+  position: relative;
+  z-index: 50;
+  height: var(--navbar-height, 64px);
+  overflow: hidden;
+}
+
+/* 桌面端隐藏导航栏 */
+.desktop-navbar-hidden {
+  height: 0;
+  opacity: 0;
+}
+
+/* 在桌面端默认隐藏导航栏 - 使用媒体查询 */
+@media (min-width: 768px) {
+  .navbar-container {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* 确保移动端显示导航栏 */
+@media (max-width: 767px) {
+  .navbar-container {
+    height: var(--navbar-height, 64px);
+    opacity: 1;
+  }
+}
+
+/* 恢复默认的过渡效果，但保持较短的时间 */
+html:not(.loading) {
+  transition: background-color 0.3s ease;
+}
+
+html:not(.loading) * {
+  transition-property: background-color, color, border-color, opacity;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* 在水合过程中防止图标闪烁 */
+.no-hydration svg {
+  opacity: 0.01;
+}
+
+/* 全局过渡效果控制 */
+:root {
+  --transition-speed: 0.2s;
+}
+
+/* 简单的加载状态处理 */
+html.loading * {
+  transition: none !important;
+}
+
+/* 添加自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.5);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 155, 155, 0.7);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 优化滚动性能 */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 重置浏览器默认样式 */
+*:focus {
+  outline: none !important;
+}
+
+*:focus-visible {
+  outline: none !important;
+}
+
+/* 打字机效果动画 */
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Toast动画 */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.3s ease-out forwards;
+}
+
+/* 增强Toast动画效果 */
+.toast-container {
+  transition: all 0.3s ease;
+  transform-origin: top center;
+}
+
+.toast-container.show {
+  animation: toast-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toast-pop {
+  0% {
+    transform: scale(0.9) translateY(-10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 强制设置AI消息气泡的深色模式样式 - 使用多重选择器增加优先级 */
+.dark .ai-message,
+.dark [class*="message-item"][class*="assistant"],
+.dark div[class*="assistant"],
+html.dark body div[class*="assistant"] {
+  background-color: #101010 !important;
+  color: #f1f1f1 !important;
+}
+
+/* 悬停状态 */
+.dark .ai-message:hover,
+.dark [class*="message-item"][class*="assistant"]:hover,
+.dark div[class*="assistant"]:hover,
+html.dark body div[class*="assistant"]:hover {
+  background-color: #000000 !important;
+}
+
+/* 强制设置AI消息气泡的亮色模式样式 */
+.ai-message,
+[class*="message-item"][class*="assistant"],
+div[class*="assistant"],
+html body div[class*="assistant"] {
+  background-color: #e5e7eb !important; /* 更深的灰色背景 */
+  color: #1f2937 !important;
+}
+
+/* 亮色模式悬停状态 - 与普通状态保持一致，不改变背景色 */
+.ai-message:hover,
+[class*="message-item"][class*="assistant"]:hover,
+div[class*="assistant"]:hover,
+html body div[class*="assistant"]:hover {
+  background-color: #e5e7eb !important; /* 与普通状态一致 */
+}

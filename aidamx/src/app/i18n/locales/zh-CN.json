@@ -1,0 +1,120 @@
+{
+  "app": {
+    "title": "Code Assistant",
+    "theme": {
+      "light": "浅色模式",
+      "dark": "深色模式"
+    },
+    "login": "登录",
+    "logout": "退出登录",
+    "switchLanguage": "简体中文",
+    "loginTip": "点击登录账号"
+  },
+  "chat": {
+    "placeholder": "输入聊天内容...",
+    "send": "发送",
+    "newChat": "新对话",
+    "selectModel": "选择模型",
+    "modelSelector": {
+      "title": "选择模型",
+      "current": "当前",
+      "empty": "没有可用的模型"
+    },
+    "voice": {
+      "preparing": "正在准备语音...",
+      "playing": "语音播放中",
+      "ended": "语音播放结束",
+      "failed": "语音生成失败: ",
+      "fetching": "正在获取语音..."
+    }
+  },
+  "sidebar": {
+    "home": "主页",
+    "skin": "皮肤",
+    "settings": "设置",
+    "profile": "个人中心",
+    "conversations": "对话",
+    "searchChat": "搜索对话",
+    "noMatchedChats": "未找到匹配的对话",
+    "noChats": "暂无对话，点击\"新对话\"按钮开始聊天"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "backToHome": "返回首页",
+    "welcomeBack": "欢迎回来",
+    "loginDescription": "登录您的 Code Assistant 账号",
+    "createAccount": "创建新账号",
+    "registerDescription": "加入 Code Assistant，享受更多功能",
+    "email": "邮箱",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "emailPlaceholder": "请输入您的邮箱",
+    "qqPlaceholder": "请输入您的QQ号",
+    "passwordPlaceholder": "请输入您的密码",
+    "confirmPasswordPlaceholder": "请再次输入密码",
+    "forgotPassword": "忘记密码?",
+    "verificationCode": "验证码",
+    "codePlaceholder": "请输入验证码",
+    "getCode": "获取验证码",
+    "sending": "发送中...",
+    "retryAfter": "秒后重试",
+    "loginButton": "登 录",
+    "registerButton": "立即注册",
+    "loginProcess": "登录中...",
+    "registerProcess": "注册中...",
+    "createNewAccount": "创建新账号",
+    "backToLogin": "返回登录",
+    "gotQQName": "已获取QQ昵称",
+    "loadingQQName": "正在获取QQ昵称...",
+    "completeInfo": "请填写完整的注册信息",
+    "passwordMismatch": "两次输入的密码不一致",
+    "resetPassword": "重置密码",
+    "resetPasswordButton": "重置密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请输入新密码",
+    "confirmNewPasswordPlaceholder": "请再次确认密码",
+    "sendResetLink": "发送重置链接",
+    "resetEmailSent": "密码重置链接已发送到您的邮箱，请查收",
+    "resetFailed": "密码重置请求失败",
+    "enterEmail": "请输入您的邮箱",
+    "forgotPasswordDescription": "请输入您的邮箱地址，我们将发送密码重置链接",
+    "invalidToken": "无效的重置链接",
+    "tokenExpiredOrInvalid": "重置链接已过期或无效",
+    "validatingToken": "正在验证重置链接...",
+    "fillAllFields": "请填写所有字段",
+    "passwordsDoNotMatch": "两次输入的密码不一致",
+    "passwordResetSuccessful": "密码重置成功",
+    "redirectingToLogin": "5秒后将跳转到登录页面",
+    "success": "成功",
+    "resetting": "正在重置...",
+    "cancel": "取消"
+  },
+  "settings": {
+    "language": "语言",
+    "appearance": "外观"
+  },
+  "welcome": {
+    "title": "Welcome to AI Assistant",
+    "description": "探索人工智能的无限可能，我们的AI助手随时为您提供智能对话、问题解答和创意灵感",
+    "startButton": "开启聊天",
+    "clickHere": "点击这里"
+  },
+  "common": {
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除"
+  },
+  "feedback": {
+    "likeThank": "感谢您的点赞！",
+    "dislikeThank": "感谢您的反馈！"
+  },
+  "profile": {
+    "registerTime": "注册时间",
+    "username": "用户名",
+    "updating": "更新中...",
+    "updateProfile": "更新个人资料",
+    "accountSecurity": "账户安全"
+  }
+} 
