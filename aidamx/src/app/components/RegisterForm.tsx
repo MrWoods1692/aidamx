@@ -41,7 +41,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [errorMsg, setErrorMsg] = useState('');
   const [showQQTip, setShowQQTip] = useState(false);
   const [isLoadingQQName, setIsLoadingQQName] = useState(false);
-  const [codeAutoFilled, setCodeAutoFilled] = useState(false); // 新增状态，用于跟踪验证码是否自动填充
   
   const { login } = useUserStore();
   const { t } = useTranslation();
@@ -138,7 +137,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
     try {
       setIsSendingCode(true);
       setErrorMsg('');
-      setCodeAutoFilled(false); // 重置自动填充状态
       
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
@@ -152,17 +150,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
       
       if (!response.ok) {
         throw new Error(data.message || '发送验证码失败');
-      }
-      
-      // 如果API返回了验证码，则自动填入
-      if (data.code) {
-        setCode(data.code);
-        setCodeAutoFilled(true); // 标记验证码已自动填充
-        
-        // 3秒后隐藏自动填充提示
-        setTimeout(() => {
-          setCodeAutoFilled(false);
-        }, 3000);
       }
       
       // 设置倒计时
@@ -383,12 +370,6 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             </button>
           </div>
         </div>
-        {codeAutoFilled && (
-          <div className="mt-1 text-xs flex items-center text-green-500 dark:text-green-400">
-            <FiInfo className="mr-1" />
-            <span>验证码已自动填入</span>
-          </div>
-        )}
         
         <button
           type="submit"

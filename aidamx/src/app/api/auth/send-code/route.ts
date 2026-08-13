@@ -152,10 +152,9 @@ export async function POST(request: Request) {
         `,
       });
       
-      // 始终返回验证码，以支持自动填充功能
+      // 验证码已发送到邮箱，不返回验证码内容
       return NextResponse.json({ 
-        message: '验证码已发送到您的邮箱', 
-        code: verificationCode  // 返回验证码以便自动填充
+        message: '验证码已发送到您的邮箱'
       });
       
     } finally {
