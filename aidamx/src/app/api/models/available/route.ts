@@ -16,10 +16,10 @@ async function connectToDatabase() {
   }
 }
 
-export async function GET(request: Request) {
+// GET: 获取所有可用模型（前台使用）
+export async function GET() {
   try {
     const connection = await connectToDatabase();
-    
     try {
       // 获取所有活跃服务商的模型
       const [modelsResult] = await connection.execute(`
@@ -77,13 +77,12 @@ export async function GET(request: Request) {
     } finally {
       await connection.end();
     }
-    
   } catch (error: any) {
     console.error('获取模型列表失败:', error);
-    return NextResponse.json({ 
-      success: true, 
-      message: `获取模型列表失败: ${error.message}`,
+    return NextResponse.json({
+      success: true,
+      message: '获取模型列表失败: ' + error.message,
       data: []
     }, { status: 500 });
   }
-} 
+}

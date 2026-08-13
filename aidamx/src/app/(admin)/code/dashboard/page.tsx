@@ -36,7 +36,7 @@ const fadeInUpKeyframes = `
 `;
 
 // 定义菜单类型
-type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'models' | 'modelList' | 'changePassword' | 'systemSettings' | 'clearCache';
+type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'changePassword' | 'systemSettings' | 'clearCache' | 'providers' | 'providerModels';
 
 // 菜单项接口
 interface MenuItem {
@@ -119,9 +119,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // 子菜单展开状态
-  const [expandedMenus, setExpandedMenus] = useState<{[key: string]: boolean}>({
-    models: false
-  });
+  const [expandedMenus, setExpandedMenus] = useState<{[key: string]: boolean}>({});
   
   // 聊天记录相关状态
   const [chats, setChats] = useState<Array<{
@@ -165,17 +163,6 @@ export default function AdminDashboard() {
   const [messageLoading, setMessageLoading] = useState(false);
   const [showChatDialog, setShowChatDialog] = useState(false);
   
-  // 模型选择相关状态
-  const [apiEndpoint, setApiEndpoint] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [models, setModels] = useState<Array<{id: string, name?: string}>>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelError, setModelError] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [modelIcons, setModelIcons] = useState<{[key: string]: string}>({});
-  const [selectedModelForIcon, setSelectedModelForIcon] = useState<string | null>(null);
-  const [showIconSelector, setShowIconSelector] = useState(false);
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error' | 'info'}>({
     show: false,
     message: '',
@@ -185,18 +172,50 @@ export default function AdminDashboard() {
   // 确认对话框状态
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps>({ isOpen: false, title: '', message: '', confirmText: '', cancelText: '', onConfirm: () => {} });
   
-  // 模型标签状态
-  const [modelTags, setModelTags] = useState<Record<string, Array<{text: string, color: string}>>>({});
-  const [showTagEditor, setShowTagEditor] = useState(false);
-  const [selectedModelForTag, setSelectedModelForTag] = useState<string | null>(null);
-  const [tagText, setTagText] = useState('');
-  const [tagColor, setTagColor] = useState('#10b981'); // 默认使用绿色
-  
   // 网站设置状态
   const [siteTitle, setSiteTitle] = useState('');
   const [siteLogo, setSiteLogo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+
+  // 服务商管理状态
+  const [providers, setProviders] = useState<Array<{
+    id: number;
+    name: string;
+    endpoint: string;
+    apiKey: string;
+    isActive: boolean;
+    sortOrder: number;
+    modelCount: number;
+    created_at: string;
+  }>>([]);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerError, setProviderError] = useState('');
+  const [showProviderForm, setShowProviderForm] = useState(false);
+  const [providerForm, setProviderForm] = useState({
+    name: '',
+    endpoint: '',
+    apiKey: '',
+    sortOrder: 0
+  });
+  const [editingProvider, setEditingProvider] = useState<number | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
+  const [providerModels, setProviderModels] = useState<Array<{
+    id: number;
+    providerId: number;
+    modelId: string;
+    displayName: string;
+    originalName: string;
+    isEnabled: boolean;
+    sortOrder: number;
+  }>>([]);
+  const [providerModelsLoading, setProviderModelsLoading] = useState(false);
+  const [showAddProviderModel, setShowAddProviderModel] = useState(false);
+  const [addModelForm, setAddModelForm] = useState({
+    modelId: '',
+    displayName: ''
+  });
+  const [editingModelName, setEditingModelName] = useState<{modelId: string, displayName: string} | null>(null);
   
   // 存储Toast定时器引用
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -542,12 +561,12 @@ export default function AdminDashboard() {
         { id: 'changePassword', icon: <FiKey />, label: '修改密码', parentId: 'settings' }
       ]
     },
-    { 
-      id: 'models', 
-      icon: <FiCpu />, 
-      label: '模型选择',
+    {
+      id: 'providers',
+      icon: <FiServer />, 
+      label: '服务商管理',
       subMenu: [
-        { id: 'modelList', icon: <FiList />, label: '模型列表', parentId: 'models' }
+        { id: 'providerModels', icon: <FiList />, label: '服务商模型', parentId: 'providers' }
       ]
     },
   ];
@@ -824,334 +843,6 @@ export default function AdminDashboard() {
     fetchUsers(1);
   };
 
-  // 获取模型列表
-  const fetchModels = async () => {
-    if (!apiEndpoint || !apiKey) {
-      setModelError('请填写API端点和API密钥');
-      return;
-    }
-
-    setIsLoadingModels(true);
-    setModelError('');
-    
-    try {
-      const endpoint = apiEndpoint.endsWith('/') ? apiEndpoint : `${apiEndpoint}/`;
-      
-      // 检查API密钥是否包含非ASCII字符
-      if (/[^\x00-\x7F]/.test(apiKey)) {
-        throw new Error('API密钥包含无效字符，请确保仅使用英文字母和数字');
-      }
-      
-      try {
-        const response = await fetch(`${endpoint}v1/models`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`请求失败: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.data && Array.isArray(data.data)) {
-          // 获取模型列表
-          const newModels = data.data;
-          
-          // 更新模型列表
-          setModels(newModels);
-          
-          if (newModels.length > 0 && !selectedModel) {
-            setSelectedModel(newModels[0].id);
-          }
-          
-          // 保存API设置到数据库（不再保存模型数据）
-          await saveAPISettings();
-          
-          // 自动展开模型菜单并跳转到模型列表页面
-          setExpandedMenus({...expandedMenus, models: true});
-          setActiveMenu('modelList');
-          
-          // 加载模型图标和标签
-          loadModelIconsAndTags();
-        } else {
-          throw new Error('返回的模型数据格式不正确');
-        }
-      } catch (error: any) {
-        setModelError(`获取模型列表失败: ${error.message}`);
-      } finally {
-        setIsLoadingModels(false);
-      }
-    } catch (error: any) {
-      setModelError(`获取模型列表失败: ${error.message}`);
-      setIsLoadingModels(false);
-    }
-  };
-  
-  // 保存API设置到数据库
-  const saveAPISettings = async () => {
-    try {
-      await fetch('/api/models/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          endpoint: apiEndpoint,
-          apiKey: apiKey,
-          selectedModel: selectedModel || ''
-        }),
-      });
-    } catch (error) {
-      console.error('保存API设置失败:', error);
-    }
-  };
-
-  // 保存模型设置
-  const saveModelSettings = async () => {
-    if (!selectedModel) {
-      setModelError('请选择一个模型');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/models/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-      endpoint: apiEndpoint,
-          apiKey: apiKey,
-          selectedModel: selectedModel
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // 使用Toast通知
-    setToast({
-      show: true,
-      message: '模型设置已保存',
-      type: 'success'
-    });
-    
-    // 3秒后自动隐藏Toast
-    setTimeout(() => {
-      setToast(prev => ({...prev, show: false}));
-    }, 3000);
-      } else {
-        setModelError(`保存失败: ${data.message}`);
-      }
-    } catch (error: any) {
-      setModelError(`保存失败: ${error.message}`);
-    }
-  };
-
-  // 加载模型设置
-  const loadModelSettings = async () => {
-    try {
-      const response = await fetch('/api/models/settings');
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setApiEndpoint(data.data.endpoint || '');
-        
-        // 确保 API 密钥也能被加载和显示
-        if (data.data.apiKey) {
-          setApiKey(data.data.apiKey);
-          console.log('成功加载 API 密钥');
-        } else {
-          console.warn('API 密钥未能从服务器获取');
-        }
-        
-        setSelectedModel(data.data.model || '');
-        
-        // 如果有 API 端点和 API 密钥，加载模型列表
-        if (data.data.endpoint && data.data.apiKey) {
-          console.log('开始使用 API 端点和密钥加载模型列表');
-          fetchModelsFromApi(data.data.endpoint, data.data.apiKey);
-        } else {
-          console.warn('缺少 API 端点或密钥，无法加载模型列表');
-        }
-      }
-    } catch (error) {
-      console.error('加载模型设置失败:', error);
-    }
-  };
-  
-  // 从数据库加载模型
-  const loadModelsFromDatabase = async () => {
-    try {
-      // 首先获取 API 设置，确保有正确的 API 密钥
-      const settingsResponse = await fetch('/api/models/settings');
-      const settingsData = await settingsResponse.json();
-      
-      if (settingsData.success && settingsData.data) {
-        // 更新 API 设置
-        setApiEndpoint(settingsData.data.endpoint || '');
-        setApiKey(settingsData.data.apiKey || '');
-        setSelectedModel(settingsData.data.model || '');
-        
-        // 添加管理员标识，确保正确验证
-        const response = await fetch('/api/models/list?admin=true', {
-          headers: {
-            'Cache-Control': 'no-cache',
-          }
-        });
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            console.error('获取模型列表失败: 权限验证失败，请重新登录');
-            setModelError('权限验证失败，请重新登录管理员账户');
-            return;
-          }
-          throw new Error(`请求失败: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success && data.data && data.data.length > 0) {
-          setModels(data.data);
-          
-          // 确保有选中的模型
-          if (!selectedModel && data.data.length > 0) {
-            setSelectedModel(data.data[0].id);
-          }
-          
-          // 加载模型图标和标签 - 直接调用现有函数
-          loadModelIconsAndTags();
-        } else if (data.success === false && data.message) {
-          setModelError(data.message as string);
-        }
-      }
-    } catch (error: any) {
-      console.error('加载数据库模型列表失败:', error);
-      setModelError(`加载模型列表失败: ${error.message}`);
-    }
-  };
-  
-  // 从API加载模型
-  const fetchModelsFromApi = async (endpoint: string, apiKey: string) => {
-    if (!endpoint || !apiKey) return;
-    
-    setIsLoadingModels(true);
-    setModelError('');
-    
-    try {
-      const apiEndpoint = endpoint.endsWith('/') ? endpoint : `${endpoint}/`;
-      
-      const response = await fetch(`${apiEndpoint}v1/models`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`请求失败: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.data && Array.isArray(data.data)) {
-        // 更新模型列表
-        setModels(data.data);
-        
-        if (data.data.length > 0 && !selectedModel) {
-          setSelectedModel(data.data[0].id);
-        }
-                } else {
-        throw new Error('返回的模型数据格式不正确');
-      }
-    } catch (error: any) {
-      setModelError(`获取模型列表失败: ${error.message}`);
-    } finally {
-      setIsLoadingModels(false);
-    }
-  };
-
-  // 加载模型图标和标签
-  const loadModelIconsAndTags = async () => {
-    try {
-      const response = await fetch('/api/models/list');
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        // 处理模型数据
-        const modelData = data.data;
-        
-        // 提取图标数据
-        const iconData: {[key: string]: string} = {};
-        modelData.forEach((model: any) => {
-          if (model.icon) {
-            iconData[model.id] = model.icon;
-          }
-        });
-        setModelIcons(iconData);
-        
-        // 提取标签数据
-        const tagData: Record<string, Array<{text: string, color: string}>> = {};
-        modelData.forEach((model: any) => {
-          if (model.tags && model.tags.length > 0) {
-            tagData[model.id] = model.tags;
-          }
-        });
-        setModelTags(tagData);
-      }
-    } catch (error) {
-      console.error('加载模型图标和标签失败:', error);
-    }
-  };
-
-  // 加载之前保存的模型设置
-  useEffect(() => {
-    if (activeMenu === 'models' || activeMenu === 'modelList') {
-      loadModelSettings();
-    }
-  }, [activeMenu]);
-  
-  useEffect(() => {
-    // 清除本地存储的模型数据
-    clearLocalStorageData();
-    
-    loadModelIconsAndTags();
-    loadModelsFromDatabase();
-  }, []);
-  
-  // 清除本地存储的模型数据
-  const clearLocalStorageData = () => {
-    if (typeof window !== 'undefined') {
-      // 清除之前用于模型的本地存储数据
-      localStorage.removeItem('modelData');
-      localStorage.removeItem('modelSettings');
-      localStorage.removeItem('modelIcons');
-      localStorage.removeItem('modelTags');
-      console.log('已清除本地存储的模型数据');
-    }
-  };
-
-  // 定期检查模型更新（每10分钟）
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    if (apiEndpoint && apiKey) {
-      intervalId = setInterval(() => {
-        console.log('定期检查模型更新...');
-        fetchModels();
-      }, 10 * 60 * 1000); // 10分钟
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [apiEndpoint, apiKey]);
-  
   // 添加删除用户的处理函数
   const handleDeleteUser = async (userId: number) => {
     setConfirmDialog({
@@ -1220,126 +911,6 @@ export default function AdminDashboard() {
         }
       }
     });
-  };
-
-  // 处理图标选择
-  const handleSelectIcon = async (iconPath: string) => {
-    if (!selectedModelForIcon) return;
-    
-    // 确保图标路径有效
-    const validIconPath = iconPath && iconPath.trim() !== '' 
-      ? iconPath 
-      : "/images/modelimg/gpt6.png";
-    
-    try {
-      const response = await fetch('/api/models/icons', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          modelId: selectedModelForIcon,
-          iconPath: validIconPath
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // 更新本地状态
-    const updatedIcons = { ...modelIcons, [selectedModelForIcon]: validIconPath };
-    setModelIcons(updatedIcons);
-        
-        // 关闭图标选择器
-    setSelectedModelForIcon(null);
-    setShowIconSelector(false);
-      } else {
-        console.error('保存模型图标失败:', data.message);
-      }
-    } catch (error) {
-      console.error('保存模型图标失败:', error);
-    }
-  };
-  
-  // 打开图标选择器
-  const openIconSelector = (modelId: string) => {
-    setSelectedModelForIcon(modelId);
-    setShowIconSelector(true);
-  };
-
-  // 打开标签编辑器
-  const openTagEditor = (modelId: string) => {
-    setSelectedModelForTag(modelId);
-    setTagText('');
-    setTagColor('#10b981');
-    setShowTagEditor(true);
-  };
-  
-  // 添加或更新标签
-  const addTag = async () => {
-    if (!selectedModelForTag || !tagText.trim()) return;
-    
-    try {
-      const response = await fetch('/api/models/tags', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          modelId: selectedModelForTag,
-          text: tagText.trim(),
-          color: tagColor
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // 重新加载标签数据
-        loadModelIconsAndTags();
-        
-        // 关闭标签编辑器
-    setShowTagEditor(false);
-    setSelectedModelForTag(null);
-    setTagText('');
-      } else {
-        console.error('添加模型标签失败:', data.message);
-      }
-    } catch (error) {
-      console.error('添加模型标签失败:', error);
-    }
-  };
-  
-  // 删除标签
-  const removeTag = async (modelId: string, tagIndex: number) => {
-    const currentTags = modelTags[modelId] || [];
-    if (tagIndex >= 0 && tagIndex < currentTags.length) {
-      try {
-        // 获取标签ID
-        const response = await fetch(`/api/models/tags?modelId=${modelId}`);
-        const data = await response.json();
-        
-        if (data.success && data.data && data.data.length > tagIndex) {
-          const tagId = data.data[tagIndex].id;
-          
-          // 删除标签
-          const deleteResponse = await fetch(`/api/models/tags?tagId=${tagId}`, {
-            method: 'DELETE',
-          });
-          
-          const deleteData = await deleteResponse.json();
-          
-          if (deleteData.success) {
-            // 重新加载标签数据
-            loadModelIconsAndTags();
-          } else {
-            console.error('删除模型标签失败:', deleteData.message);
-          }
-        }
-      } catch (error) {
-        console.error('删除模型标签失败:', error);
-      }
-    }
   };
 
   // 显示toast消息
@@ -1638,10 +1209,6 @@ export default function AdminDashboard() {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  // 如果模型图标选择器是打开的，则监听点击事件来关闭它
-  useEffect(() => {
-    // ... existing code ...
-  }, [showIconSelector, showTagEditor]);
 
   // 格式化文件大小
   const formatSize = (bytes: number): string => {
@@ -1748,10 +1315,295 @@ export default function AdminDashboard() {
       fetchUsers();
     } else if (menuId === 'chats') {
       fetchChats();
+    } else if (menuId === 'providers') {
+      fetchProviders();
+    } else if (menuId === 'providerModels') {
+      // 如果没有选择服务商，先加载服务商列表
+      if (!selectedProvider) {
+        fetchProviders();
+      }
     }
     
     if (window.innerWidth < 768) {
       setMobileMenuOpen(false);
+    }
+  };
+
+  // 获取服务商列表
+  const fetchProviders = async () => {
+    setProviderLoading(true);
+    setProviderError('');
+    
+    try {
+      const response = await fetch('/api/admin/providers', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('获取服务商列表失败');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProviders(data.data);
+      } else {
+        setProviderError(data.message || '获取服务商列表失败');
+      }
+    } catch (error: any) {
+      setProviderError(error.message);
+      console.error('获取服务商列表错误:', error);
+    } finally {
+      setProviderLoading(false);
+    }
+  };
+
+  // 创建服务商
+  const handleCreateProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!providerForm.name || !providerForm.endpoint || !providerForm.apiKey) {
+      setProviderError('请填写所有必填字段');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/admin/providers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(providerForm),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProviderForm({ name: '', endpoint: '', apiKey: '', sortOrder: 0 });
+        setShowProviderForm(false);
+        fetchProviders();
+        showToast({
+          title: '创建成功',
+          description: '服务商已创建',
+          status: 'success'
+        });
+      } else {
+        setProviderError(data.message || '创建失败');
+      }
+    } catch (error: any) {
+      setProviderError(error.message);
+    }
+  };
+
+  // 更新服务商
+  const handleUpdateProvider = async (providerId: number) => {
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(providerForm),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setEditingProvider(null);
+        setProviderForm({ name: '', endpoint: '', apiKey: '', sortOrder: 0 });
+        fetchProviders();
+        showToast({
+          title: '更新成功',
+          description: '服务商已更新',
+          status: 'success'
+        });
+      } else {
+        setProviderError(data.message || '更新失败');
+      }
+    } catch (error: any) {
+      setProviderError(error.message);
+    }
+  };
+
+  // 删除服务商
+  const handleDeleteProvider = async (providerId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: '删除服务商',
+      message: '确定要删除此服务商吗？此操作将同时删除该服务商下的所有模型配置！',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/providers/${providerId}`, {
+            method: 'DELETE',
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            fetchProviders();
+            showToast({
+              title: '删除成功',
+              description: '服务商已删除',
+              status: 'success'
+            });
+          } else {
+            showToast({
+              title: '删除失败',
+              description: data.message || '删除失败',
+              status: 'error'
+            });
+          }
+        } catch (error: any) {
+          showToast({
+            title: '删除失败',
+            description: error.message,
+            status: 'error'
+          });
+        }
+      }
+    });
+  };
+
+  // 从服务商API同步模型
+  const handleSyncProviderModels = async (providerId: number) => {
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}/models`, {
+        method: 'GET',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast({
+          title: '同步成功',
+          description: data.message,
+          status: 'success'
+        });
+        fetchProviderModels(providerId);
+      } else {
+        showToast({
+          title: '同步失败',
+          description: data.message,
+          status: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: '同步失败',
+        description: error.message,
+        status: 'error'
+      });
+    }
+  };
+
+  // 获取服务商的模型列表
+  const fetchProviderModels = async (providerId: number) => {
+    setSelectedProvider(providerId);
+    setProviderModelsLoading(true);
+    
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}`, {
+        method: 'GET',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProviderModels(data.data.models);
+        setActiveMenu('providerModels');
+      } else {
+        showToast({
+          title: '获取失败',
+          description: data.message,
+          status: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: '获取失败',
+        description: error.message,
+        status: 'error'
+      });
+    } finally {
+      setProviderModelsLoading(false);
+    }
+  };
+
+  // 更新模型显示名称
+  const handleUpdateModelDisplayName = async (providerId: number, modelId: string, displayName: string) => {
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}/models/${modelId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ providerId, modelId, displayName }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setEditingModelName(null);
+        fetchProviderModels(providerId);
+        showToast({
+          title: '更新成功',
+          description: '模型显示名称已更新',
+          status: 'success'
+        });
+      } else {
+        showToast({
+          title: '更新失败',
+          description: data.message,
+          status: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: '更新失败',
+        description: error.message,
+        status: 'error'
+      });
+    }
+  };
+
+  // 切换模型启用状态
+  const handleToggleModelEnabled = async (providerId: number, modelId: string, isEnabled: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}/models/${modelId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ providerId, modelId, isEnabled: !isEnabled }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        fetchProviderModels(providerId);
+        showToast({
+          title: '更新成功',
+          description: '模型状态已更新',
+          status: 'success'
+        });
+      } else {
+        showToast({
+          title: '更新失败',
+          description: data.message,
+          status: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: '更新失败',
+        description: error.message,
+        status: 'error'
+      });
     }
   };
 
@@ -3191,232 +3043,6 @@ export default function AdminDashboard() {
                 </>
               )}
 
-              {activeMenu === 'modelList' && (
-                <>
-                  <div className="mb-6">
-                  </div>
-                  
-                  {/* 模型卡片网格 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                    {models.map((model) => {
-                      // 确保图标路径永远不为空字符串
-                      const iconPath = modelIcons[model.id] || "/images/modelimg/gpt6.png";
-                      
-                      return (
-                        <div 
-                          key={model.id}
-                          className={`relative overflow-hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-md border ${selectedModel === model.id ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/50 dark:ring-cyan-400/30' : 'border-indigo-100/50 dark:border-indigo-900/30'} transform-gpu transition-all hover:shadow-lg cursor-pointer`}
-                          onClick={() => setSelectedModel(model.id)}
-                        >
-                          {/* 背景装饰 */}
-                          <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400/20 to-cyan-600/20 dark:from-cyan-400/10 dark:to-cyan-600/10 blur-md"></div>
-                          <div className="absolute -left-6 -bottom-6 w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-400/20 to-indigo-600/20 dark:from-indigo-400/5 dark:to-indigo-600/5 blur-md"></div>
-                          
-                          <div className="p-6 relative z-10">
-                            <div className="flex items-center mb-4">
-                              <div className="w-10 h-10 flex items-center justify-center mr-3">
-                                {iconPath ? (
-                                  <Image 
-                                    src={iconPath} 
-                                    alt={model.id || "模型图标"} 
-                                    width={32} 
-                                    height={32} 
-                                    className="object-contain" 
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <FiCpu className="text-xl text-cyan-500" />
-                                )}
-                              </div>
-                              <button 
-                                className="w-9 h-9 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openIconSelector(model.id);
-                                }}
-                              >
-                                <FiEdit2 className="text-gray-500 dark:text-gray-400 text-base" />
-                              </button>
-                            </div>
-                            
-                            <h3 
-                              className="text-lg font-bold text-gray-800 dark:text-white mb-2 break-words" 
-                              title={model.id}
-                            >
-                              {model.id}
-                            </h3>
-                            
-                            {model.name && (
-                              <p 
-                                className="text-gray-600 dark:text-gray-300 text-sm mb-4 break-words" 
-                                title={model.name}
-                              >
-                                {model.name}
-                              </p>
-                            )}
-                            
-                            {/* 标签区域 */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              {(modelTags[model.id] || []).map((tag, index) => (
-                                <div 
-                                  key={index}
-                                  className="px-2 py-1 rounded-full text-xs font-medium flex items-center"
-                                  style={{ 
-                                    backgroundColor: `${tag.color}20`, // 20%透明度的背景色
-                                    color: tag.color,
-                                    borderWidth: '1px',
-                                    borderColor: `${tag.color}40` // 40%透明度的边框色
-                                  }}
-                                >
-                                  <span>{tag.text}</span>
-                                  <button 
-                                    className="ml-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeTag(model.id, index);
-                                    }}
-                                  >
-                                    <FiX className="text-[10px]" />
-                                  </button>
-                                </div>
-                              ))}
-                              
-                              {(modelTags[model.id] || []).length < 2 && (
-                                <button 
-                                  className="px-2 py-1 rounded-full text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openTagEditor(model.id);
-                                  }}
-                                >
-                                  <FiPlus className="mr-1 text-xs" />
-                                  添加标签
-                                </button>
-                              )}
-                            </div>
-                            
-                            {selectedModel === model.id && (
-                              <div className="absolute top-4 right-4 w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center shadow-md">
-                                <FiCheck className="text-white" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {activeMenu === 'models' && (
-                <>
-                  <div className="mb-6">
-                  </div>
-                  
-                  <div className="relative overflow-hidden bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-md group border border-indigo-100/50 dark:border-indigo-900/30 transform-gpu mb-6">
-                    {/* 背景装饰 - 减少模糊效果 */}
-                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400/20 to-cyan-600/20 dark:from-cyan-400/10 dark:to-cyan-600/10 blur-md"></div>
-                    <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-tr from-cyan-400/20 to-cyan-600/20 dark:from-cyan-400/5 dark:to-cyan-600/5 blur-md"></div>
-                    
-                    <div className="p-6 relative z-10">
-                      <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center">
-                        <div className="p-2.5 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 text-white shadow-md mr-2">
-                          <FiCpu className="text-lg" />
-                        </div>
-                        <span>模型选择</span>
-                      </h2>
-                      
-                      <p className="text-gray-600 dark:text-gray-300 mb-6">
-                        设置中转站的API端点和密钥，选择要使用的模型。
-                      </p>
-                      
-                      {modelError && (
-                        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
-                          {modelError}
-                        </div>
-                      )}
-                      
-                      <div className="grid grid-cols-1 gap-6 models-form-container">
-                        {/* API端点输入 */}
-                        <div>
-                          <label htmlFor="apiEndpoint" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            API端点
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FiServer className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <input
-                              id="apiEndpoint"
-                              type="url"
-                              value={apiEndpoint}
-                              onChange={(e) => setApiEndpoint(e.target.value)}
-                              placeholder="https://your-api-proxy.com/"
-                              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                          </div>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            例如: https://api.openai-proxy.com/
-                          </p>
-                        </div>
-                        
-                        {/* API密钥输入 */}
-                        <div>
-                          <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            API密钥
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FiKey className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <input
-                              id="apiKey"
-                              type={showApiKey ? "text" : "password"}
-                              value={apiKey}
-                              onChange={(e) => setApiKey(e.target.value)}
-                              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-                              className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <div 
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                              onClick={() => setShowApiKey(!showApiKey)}
-                            >
-                              {showApiKey ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
-                            </div>
-                          </div>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            您的API密钥将仅存储在本地浏览器中
-                          </p>
-                        </div>
-                        
-                        
-                        {/* 获取模型按钮区域 */}
-                        <div className="flex items-center justify-between space-x-2">
-                          <button
-                            onClick={fetchModels}
-                            disabled={isLoadingModels}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isLoadingModels ? (
-                              <>
-                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                获取中...
-                              </>
-                            ) : (
-                              <>获取API模型列表</>
-                            )}
-                          </button>
-                          
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
               {/* 清除缓存页面 */}
               {activeMenu === 'clearCache' && (
                 <div className="px-6 py-8">
@@ -3533,6 +3159,302 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
+
+              {/* 服务商管理页面 */}
+              {activeMenu === 'providers' && (
+                <>
+                  <div className="mb-6"></div>
+                  
+                  <div className="relative overflow-hidden bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-md group border border-purple-100/50 dark:border-purple-900/30 transform-gpu mb-6">
+                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-purple-400/20 to-purple-600/20 dark:from-purple-400/10 dark:to-purple-600/10 blur-md"></div>
+                    <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-tr from-purple-400/20 to-purple-600/20 dark:from-purple-400/5 dark:to-purple-600/5 blur-md"></div>
+                    
+                    <div className="p-6 relative z-10">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center">
+                          <div className="p-2.5 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-md mr-2">
+                            <FiServer className="text-lg" />
+                          </div>
+                          <span>服务商管理</span>
+                        </h2>
+                        <button
+                          onClick={() => {
+                            setEditingProvider(null);
+                            setProviderForm({ name: '', endpoint: '', apiKey: '', sortOrder: 0 });
+                            setShowProviderForm(true);
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md flex items-center"
+                        >
+                          <FiPlus className="mr-2" />
+                          添加服务商
+                        </button>
+                      </div>
+
+                      {providerError && (
+                        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+                          {providerError}
+                        </div>
+                      )}
+
+                      {/* 添加/编辑服务商表单 */}
+                      {showProviderForm && (
+                        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-purple-200 dark:border-purple-800/30">
+                          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                            {editingProvider ? '编辑服务商' : '添加新服务商'}
+                          </h3>
+                          <form onSubmit={editingProvider ? (e) => { e.preventDefault(); handleUpdateProvider(editingProvider); } : handleCreateProvider} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">服务商名称</label>
+                                <input
+                                  type="text"
+                                  value={providerForm.name}
+                                  onChange={(e) => setProviderForm({...providerForm, name: e.target.value})}
+                                  placeholder="例如: OpenAI"
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">排序</label>
+                                <input
+                                  type="number"
+                                  value={providerForm.sortOrder}
+                                  onChange={(e) => setProviderForm({...providerForm, sortOrder: parseInt(e.target.value) || 0})}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API端点</label>
+                              <input
+                                type="url"
+                                value={providerForm.endpoint}
+                                onChange={(e) => setProviderForm({...providerForm, endpoint: e.target.value})}
+                                placeholder="https://api.openai.com/"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API密钥</label>
+                              <input
+                                type="password"
+                                value={providerForm.apiKey}
+                                onChange={(e) => setProviderForm({...providerForm, apiKey: e.target.value})}
+                                placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                                required
+                              />
+                            </div>
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowProviderForm(false);
+                                  setEditingProvider(null);
+                                  setProviderForm({ name: '', endpoint: '', apiKey: '', sortOrder: 0 });
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                              >
+                                取消
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
+                              >
+                                {editingProvider ? '保存修改' : '创建服务商'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {/* 服务商列表 */}
+                      {providerLoading ? (
+                        <div className="flex justify-center items-center h-32">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                        </div>
+                      ) : providers.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          <FiServer className="mx-auto mb-2 text-3xl" />
+                          <p>暂无服务商，请添加第一个服务商</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {providers.map((provider) => (
+                            <div key={provider.id} className="p-4 bg-white dark:bg-gray-900/50 rounded-lg border border-purple-100 dark:border-purple-900/30 hover:shadow-md transition-shadow">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 mr-3">
+                                    <FiServer />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium text-gray-800 dark:text-white">{provider.name}</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{provider.endpoint}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${provider.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                    {provider.isActive ? '活跃' : '停用'}
+                                  </span>
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                    {provider.modelCount} 个模型
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingProvider(provider.id);
+                                      setProviderForm({
+                                        name: provider.name,
+                                        endpoint: provider.endpoint,
+                                        apiKey: provider.apiKey,
+                                        sortOrder: provider.sortOrder
+                                      });
+                                      setShowProviderForm(true);
+                                    }}
+                                    className="p-2 text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button
+                                    onClick={() => fetchProviderModels(provider.id)}
+                                    className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                                  >
+                                    <FiList />
+                                  </button>
+                                  <button
+                                    onClick={() => handleSyncProviderModels(provider.id)}
+                                    className="p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30"
+                                  >
+                                    <FiRefreshCw />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProvider(provider.id)}
+                                    className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 服务商模型管理页面 */}
+              {activeMenu === 'providerModels' && selectedProvider && (
+                <>
+                  <div className="mb-6"></div>
+                  
+                  <div className="relative overflow-hidden bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-md group border border-blue-100/50 dark:border-blue-900/30 transform-gpu mb-6">
+                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-blue-400/20 to-blue-600/20 dark:from-blue-400/10 dark:to-blue-600/10 blur-md"></div>
+                    <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-tr from-blue-400/20 to-blue-600/20 dark:from-blue-400/5 dark:to-blue-600/5 blur-md"></div>
+                    
+                    <div className="p-6 relative z-10">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => setActiveMenu('providers')}
+                            className="mr-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+                          >
+                            <FiArrowLeft />
+                          </button>
+                          <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center">
+                            <div className="p-2.5 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md mr-2">
+                              <FiList className="text-lg" />
+                            </div>
+                            <span>服务商模型管理</span>
+                          </h2>
+                        </div>
+                        <button
+                          onClick={() => handleSyncProviderModels(selectedProvider)}
+                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md flex items-center"
+                        >
+                          <FiRefreshCw className="mr-2" />
+                          同步模型
+                        </button>
+                      </div>
+
+                      {providerModelsLoading ? (
+                        <div className="flex justify-center items-center h-32">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        </div>
+                      ) : providerModels.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          <FiCpu className="mx-auto mb-2 text-3xl" />
+                          <p>暂无模型，请点击"同步模型"从服务商API获取</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {providerModels.map((model) => (
+                            <div key={model.id} className="p-4 bg-white dark:bg-gray-900/50 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:shadow-md transition-shadow">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center flex-1 min-w-0">
+                                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 mr-3 flex-shrink-0">
+                                    <FiCpu />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    {editingModelName?.modelId === model.modelId ? (
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="text"
+                                          value={editingModelName.displayName}
+                                          onChange={(e) => setEditingModelName({...editingModelName, displayName: e.target.value})}
+                                          className="px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500/50"
+                                          placeholder="自定义显示名称"
+                                        />
+                                        <button
+                                          onClick={() => handleUpdateModelDisplayName(selectedProvider, model.modelId, editingModelName.displayName)}
+                                          className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                        >
+                                          保存
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingModelName(null)}
+                                          className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                                        >
+                                          取消
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <h4 className="font-medium text-gray-800 dark:text-white truncate">
+                                          {model.displayName || model.originalName || model.modelId}
+                                        </h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{model.modelId}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                  <button
+                                    onClick={() => setEditingModelName({ modelId: model.modelId, displayName: model.displayName || '' })}
+                                    className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                                    title="编辑显示名称"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleModelEnabled(selectedProvider, model.modelId, model.isEnabled)}
+                                    className={`p-2 rounded-lg ${model.isEnabled ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                    title={model.isEnabled ? '禁用模型' : '启用模型'}
+                                  >
+                                    {model.isEnabled ? <FiCheck /> : <FiX />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           
@@ -3541,46 +3463,11 @@ export default function AdminDashboard() {
             © {new Date().getFullYear()} 管理控制中心 · 版本 1.0.0
           </div>
           
-          {/* 为模型列表页面添加保存按钮 - 放在内容区内，但确保固定定位 */}
-          {activeMenu === 'modelList' && (
-            <div className="fixed w-full md:w-[calc(100%-16rem)] left-0 md:left-64 bottom-10 z-50 py-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800">
-              <div className="flex justify-center">
-                <button
-                  onClick={saveModelSettings}
-                  className="py-2.5 px-6 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-md cursor-pointer whitespace-nowrap"
-                >
-                  保存设置
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
       
       {/* 自定义输入框聚焦颜色样式 */}
       <style jsx global>{`
-        /* 预设输入框样式，避免闪烁 */
-        .models-form-container input {
-          transition: none !important; /* 禁用所有过渡效果 */
-          outline: none !important; /* 禁用浏览器默认聚焦轮廓 */
-        }
-        
-        /* 覆盖输入框聚焦时的样式 */
-        .models-form-container input:focus {
-          --tw-ring-color: rgba(6, 182, 212, 0.5) !important; /* cyan-500 with 0.5 opacity */
-          --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
-          box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
-          border-color: rgb(6, 182, 212) !important; /* cyan-500 */
-          outline: none !important; /* 禁用浏览器默认聚焦轮廓 */
-          transition: none !important; /* 禁用所有过渡效果，避免闪烁 */
-        }
-        
-        /* 暗黑模式下聚焦样式 */
-        .dark .models-form-container input:focus {
-          --tw-ring-color: rgba(8, 145, 178, 0.5) !important; /* cyan-600 with 0.5 opacity */
-          border-color: rgb(8, 145, 178) !important; /* cyan-600 */
-        }
-        
         /* Toast动画 */
         @keyframes fadeInDown {
           from {
@@ -3669,153 +3556,6 @@ export default function AdminDashboard() {
               >
                 {confirmDialog.confirmText}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* 图标选择器对话框 */}
-      {showIconSelector && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl overflow-hidden transform animate-fade-in-up">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                选择模型图标
-              </h3>
-              <button
-                onClick={() => {
-                  setSelectedModelForIcon(null);
-                  setShowIconSelector(false);
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
-              >
-                <FiX className="text-xl" />
-              </button>
-            </div>
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                {[
-                  "ai360.png", "alibaba.png", "Azure.png", "BAAI.png", "bytedance.png",
-                  "claude.png", "Claude2.png", "cohere.png", "colab.png", "comfyui.png", 
-                  "copilot.png", "dify.png", "doubao.png", "flux2.png", "gemini.png", 
-                  "Google.png", "gpt1.png", "gpt2.png", "gpt3.png", "gpt4.png", 
-                  "gpt5.png", "gpt6.png", "gpt7.png", "grok2.png", "hailuo.png", 
-                  "higress.png", "huggingface.png", "hunyuan.png", "internlm.png", "internlm2.png", 
-                  "kling.png", "llava.png", "Meta.png", "deepseek.png", "mistral.png", 
-                  "nova.png", "palm.png", "perplexity.png", "perplexity2.png", 
-                  "poe.png", "Qingyan.png", "Qwen.png", "siliconcloud.png", "spark.png", 
-                  "stability.png", "stepfun.png", "suno2.png", "tencent.png", "tiangong.png", 
-                  "wenxin.png", "workersai.png", "Yi.png", "Zhipu.png"
-                ].map((icon) => {
-                  const imagePath = `/images/modelimg/${icon}`;
-                  return (
-                    <div 
-                      key={icon}
-                      className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer flex flex-col items-center justify-center transition-colors"
-                      onClick={() => handleSelectIcon(imagePath)}
-                    >
-                      <Image 
-                        src={imagePath} 
-                        alt={icon || "模型图标"} 
-                        width={28} 
-                        height={28} 
-                        className="object-contain mb-2" 
-                        unoptimized
-                      />
-                      <span className="text-xs text-gray-600 dark:text-gray-300 text-center truncate w-full">
-                        {icon.replace('.png', '')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* 标签编辑器对话框 */}
-      {showTagEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden transform animate-fade-in-up">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                添加模型标签
-              </h3>
-              <button 
-                onClick={() => {
-                  setSelectedModelForTag(null);
-                  setShowTagEditor(false);
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
-              >
-                <FiX className="text-xl" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  标签文本
-                </label>
-                <input
-                  type="text"
-                  value={tagText}
-                  onChange={(e) => setTagText(e.target.value)}
-                  placeholder="输入标签文本"
-                  maxLength={10}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  最多输入10个字符
-                </p>
-              </div>
-              
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  标签颜色
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    '#10b981', // green
-                    '#0ea5e9', // blue
-                    '#8b5cf6', // purple
-                    '#ec4899', // pink
-                    '#f59e0b', // amber
-                    '#ef4444', // red
-                    '#6b7280', // gray
-                  ].map((color) => (
-                    <div 
-                      key={color}
-                      className={`w-8 h-8 rounded-full cursor-pointer flex items-center justify-center ${tagColor === color ? 'ring-2 ring-offset-2 dark:ring-offset-gray-800 ring-black/30 dark:ring-white/30' : ''}`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setTagColor(color)}
-                    >
-                      {tagColor === color && (
-                        <FiCheck className="text-white" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <button
-                  onClick={() => {
-                    setSelectedModelForTag(null);
-                    setShowTagEditor(false);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none mr-3"
-                >
-                  取消
-                </button>
-                <button 
-                  onClick={addTag}
-                  disabled={!tagText.trim()}
-                  className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 dark:bg-cyan-700 border border-transparent rounded-md hover:bg-cyan-700 dark:hover:bg-cyan-800 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  添加
-                </button>
-              </div>
             </div>
           </div>
         </div>

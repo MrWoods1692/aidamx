@@ -168,13 +168,13 @@ export async function POST(request: Request) {
     }
     
     // 解析请求体
-    const { endpoint, apiKey, selectedModel } = await request.json();
+    const { endpoint, apiKey, selectedModel, providerId } = await request.json();
     
     // 验证请求数据
-    if (!endpoint || !apiKey || !selectedModel) {
+    if (!selectedModel) {
       return NextResponse.json({ 
         success: false, 
-        message: '请提供API端点、API密钥和选定的模型' 
+        message: '请提供选定的模型' 
       }, { status: 400 });
     }
     
@@ -198,18 +198,54 @@ export async function POST(request: Request) {
         );
       }
       
-      // 插入或更新模型设置
-      await connection.execute(`
-        INSERT INTO model_settings 
-          (endpoint, api_key, selected_model) 
-        VALUES 
-          (?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          endpoint = VALUES(endpoint),
-          api_key = VALUES(api_key),
-          selected_model = VALUES(selected_model),
-          updated_at = NOW()
-      `, [endpoint, apiKey, selectedModel]);
+      // 如果有providerId，使用新的多服务商系统
+      if (providerId && endpoint && apiKey) {
+        // 确保provider存在
+        const [providerResult] = await connection.execute(
+          'SELECT id FROM providers WHERE id = ?',
+          [providerId]
+        );
+        
+        const providerArray = providerResult as any[];
+        
+        if (providerArray.length === 0) {
+          // 创建provider
+          await connection.execute(
+            'INSERT INTO providers (name, endpoint, api_key, is_active, sort_order) VALUES (?, ?, ?, TRUE, 0)',
+            [`Provider ${providerId}`, endpoint, apiKey]
+          );
+        } else {
+          // 更新provider
+          await connection.execute(
+            'UPDATE providers SET endpoint = ?, api_key = ?, updated_at = NOW() WHERE id = ?',
+            [endpoint, apiKey, providerId]
+          );
+        }
+        
+        // 插入或更新provider_models
+        await connection.execute(`
+          INSERT INTO provider_models (provider_id, model_id, display_name, is_enabled, sort_order)
+          VALUES (?, ?, ?, TRUE, 0)
+          ON DUPLICATE KEY UPDATE
+            is_enabled = TRUE,
+            updated_at = NOW()
+        `, [providerId, selectedModel, selectedModel]);
+      }
+      
+      // 同时更新旧的model_settings表（向后兼容）
+      if (endpoint && apiKey) {
+        await connection.execute(`
+          INSERT INTO model_settings 
+            (endpoint, api_key, selected_model) 
+          VALUES 
+            (?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            endpoint = VALUES(endpoint),
+            api_key = VALUES(api_key),
+            selected_model = VALUES(selected_model),
+            updated_at = NOW()
+        `, [endpoint, apiKey, selectedModel]);
+      }
       
       return NextResponse.json({
         success: true,

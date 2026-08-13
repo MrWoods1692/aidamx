@@ -65,7 +65,35 @@ CREATE TABLE IF NOT EXISTS `models` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 创建模型设置表
+-- 创建服务商表
+CREATE TABLE IF NOT EXISTS `providers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `endpoint` VARCHAR(255) NOT NULL,
+  `api_key` VARCHAR(255) NOT NULL,
+  `is_active` BOOLEAN DEFAULT TRUE,
+  `sort_order` INT DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_sort_order` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建服务商模型表（每个服务商下的模型及其自定义显示名称）
+CREATE TABLE IF NOT EXISTS `provider_models` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `provider_id` INT NOT NULL,
+  `model_id` VARCHAR(255) NOT NULL,
+  `display_name` VARCHAR(255),
+  `is_enabled` BOOLEAN DEFAULT TRUE,
+  `sort_order` INT DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `unique_provider_model` (`provider_id`, `model_id`),
+  FOREIGN KEY (`provider_id`) REFERENCES `providers` (`id`) ON DELETE CASCADE,
+  INDEX `idx_provider_id` (`provider_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建模型设置表（保留兼容旧数据）
 CREATE TABLE IF NOT EXISTS `model_settings` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `endpoint` VARCHAR(255) NOT NULL,

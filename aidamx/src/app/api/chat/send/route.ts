@@ -175,31 +175,49 @@ export async function POST(request: Request) {
         }, { status: 400 });
       }
       
-      // 获取API设置
+      // 从provider_models表获取API端点和密钥（支持多服务商）
       let apiEndpoint = '';
       let apiKey = '';
       
-      const [apiSettingsResult] = await connection.execute(`
-        SELECT endpoint, api_key
-        FROM model_settings
-        ORDER BY id DESC
+      const [providerModelResult] = await connection.execute(`
+        SELECT p.endpoint, p.api_key
+        FROM provider_models pm
+        INNER JOIN providers p ON pm.provider_id = p.id
+        WHERE pm.model_id = ? AND p.is_active = TRUE AND pm.is_enabled = TRUE
         LIMIT 1
-      `);
+      `, [selectedModelId]);
       
-      const apiSettingsArray = apiSettingsResult as any[];
+      const providerModelArray = providerModelResult as any[];
       
-      if (apiSettingsArray.length === 0) {
-        return NextResponse.json({
-          success: false,
-          message: '未配置API设置，请先在管理员面板配置API'
-        }, { status: 400 });
+      if (providerModelArray.length > 0) {
+        apiEndpoint = providerModelArray[0].endpoint;
+        apiKey = providerModelArray[0].api_key;
+      } else {
+        // 回退到旧的model_settings表
+        const [apiSettingsResult] = await connection.execute(`
+          SELECT endpoint, api_key
+          FROM model_settings
+          ORDER BY id DESC
+          LIMIT 1
+        `);
+        
+        const apiSettingsArray = apiSettingsResult as any[];
+        
+        if (apiSettingsArray.length === 0) {
+          return NextResponse.json({
+            success: false,
+            message: '未配置API设置，请先在管理员面板配置API'
+          }, { status: 400 });
+        }
+        
+        const apiSettings = apiSettingsArray[0];
+        apiEndpoint = apiSettings.endpoint;
+        apiKey = apiSettings.api_key;
       }
       
-      const apiSettings = apiSettingsArray[0];
-      apiEndpoint = apiSettings.endpoint.endsWith('/') 
-        ? apiSettings.endpoint 
-        : `${apiSettings.endpoint}/`;
-      apiKey = apiSettings.api_key;
+      apiEndpoint = apiEndpoint.endsWith('/') 
+        ? apiEndpoint 
+        : `${apiEndpoint}/`;
       
       // 创建或使用现有聊天记录
       let chatId: number;
