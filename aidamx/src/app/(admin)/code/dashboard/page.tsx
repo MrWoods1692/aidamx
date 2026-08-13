@@ -36,7 +36,7 @@ const fadeInUpKeyframes = `
 `;
 
 // 定义菜单类型
-type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'models' | 'modelList' | 'ollamaModelList' | 'changePassword' | 'systemSettings' | 'clearCache';
+type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'models' | 'modelList' | 'changePassword' | 'systemSettings' | 'clearCache';
 
 // 菜单项接口
 interface MenuItem {
@@ -168,7 +168,6 @@ export default function AdminDashboard() {
   // 模型选择相关状态
   const [apiEndpoint, setApiEndpoint] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [ollamaApiUrl, setOllamaApiUrl] = useState('http://localhost:11434');
   const [models, setModels] = useState<Array<{id: string, name?: string}>>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelError, setModelError] = useState('');
@@ -201,24 +200,6 @@ export default function AdminDashboard() {
   
   // 存储Toast定时器引用
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Ollama模型相关状态
-  const [ollamaModels, setOllamaModels] = useState<Array<{
-    name: string;
-    modified_at: string;
-    size: number;
-    digest: string;
-    details?: {
-      format: string;
-      family: string;
-      families?: string[];
-      parameter_size?: string;
-      quantization_level?: string;
-    };
-  }>>([]);
-  const [ollamaLoading, setOllamaLoading] = useState(false);
-  const [ollamaError, setOllamaError] = useState<string | null>(null);
-  const [selectedOllamaModel, setSelectedOllamaModel] = useState<string | null>(null);
   
   // 注入动画样式
   useEffect(() => {
@@ -566,8 +547,7 @@ export default function AdminDashboard() {
       icon: <FiCpu />, 
       label: '模型选择',
       subMenu: [
-        { id: 'modelList', icon: <FiList />, label: '模型列表', parentId: 'models' },
-        { id: 'ollamaModelList', icon: <FiList />, label: 'Ollama列表', parentId: 'models' }
+        { id: 'modelList', icon: <FiList />, label: '模型列表', parentId: 'models' }
       ]
     },
   ];
@@ -1663,130 +1643,6 @@ export default function AdminDashboard() {
     // ... existing code ...
   }, [showIconSelector, showTagEditor]);
 
-  // 加载Ollama模型列表
-  useEffect(() => {
-    if (activeMenu === 'ollamaModelList') {
-      fetchOllamaModels();
-    }
-  }, [activeMenu, ollamaApiUrl]);
-
-  // 获取Ollama模型列表
-  const fetchOllamaModels = async () => {
-    setOllamaLoading(true);
-    setOllamaError(null);
-    
-    try {
-      const response = await fetch(`${ollamaApiUrl}/api/tags`);
-      
-      if (!response.ok) {
-        throw new Error(`请求失败 (${response.status}): ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data && data.models) {
-        setOllamaModels(data.models);
-      } else {
-        throw new Error('返回数据格式不正确');
-      }
-    } catch (err: any) {
-      console.error('获取 Ollama 模型失败:', err);
-      setOllamaError(err.message || '获取模型列表失败，请检查 Ollama 是否运行');
-    } finally {
-      setOllamaLoading(false);
-    }
-  };
-
-  // 获取Ollama模型详情
-  const getOllamaModelDetails = async (modelName: string) => {
-    try {
-      const response = await fetch(`${ollamaApiUrl}/api/show`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: modelName,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`请求失败 (${response.status}): ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // 找到这个模型并更新它的详情
-      const updatedModels = ollamaModels.map(model => {
-        if (model.name === modelName) {
-          return {
-            ...model,
-            details: {
-              format: data.model.format || '未知',
-              family: data.model.family || '未知',
-              families: data.model.families || [],
-              parameter_size: data.model.parameter_size || '未知',
-              quantization_level: data.model.quantization_level || '未知',
-            }
-          };
-        }
-        return model;
-      });
-      
-      setOllamaModels(updatedModels);
-    } catch (err: any) {
-      console.error(`获取模型 ${modelName} 详情失败:`, err);
-    }
-  };
-  
-  // 使用Ollama模型
-  const useOllamaModel = async (modelName: string) => {
-    try {
-      const url = `/api/models/set-ollama?model=${encodeURIComponent(modelName)}&apiUrl=${encodeURIComponent(ollamaApiUrl)}`;
-      
-      const response = await fetch(url, { method: 'POST' });
-      const data = await response.json();
-      
-      if (data.success) {
-        setToast({
-          show: true,
-          message: `已设置 ${modelName} 为当前模型`,
-          type: 'success'
-        });
-        
-        // 3秒后自动隐藏Toast
-        setTimeout(() => {
-          setToast(prev => ({...prev, show: false}));
-        }, 3000);
-        
-        // 不再跳转到首页，让用户停留在当前页面
-        // router.push('/');
-      } else {
-        setToast({
-          show: true,
-          message: `设置失败: ${data.message}`,
-          type: 'error'
-        });
-        
-        // 3秒后自动隐藏Toast
-        setTimeout(() => {
-          setToast(prev => ({...prev, show: false}));
-        }, 3000);
-      }
-    } catch (err: any) {
-      setToast({
-        show: true,
-        message: `设置失败: ${err.message}`,
-        type: 'error'
-      });
-      
-      // 3秒后自动隐藏Toast
-      setTimeout(() => {
-        setToast(prev => ({...prev, show: false}));
-      }, 3000);
-    }
-  };
-  
   // 格式化文件大小
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -1795,18 +1651,6 @@ export default function AdminDashboard() {
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
-  };
-  
-  // 格式化日期
-  const formatOllamaDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('zh-CN', {
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
   };
 
   // 获取聊天记录列表
@@ -3545,28 +3389,6 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                         
-                        {/* Ollama API 端口输入 */}
-                        <div>
-                          <label htmlFor="ollamaApiUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Ollama API 地址
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FiServer className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <input
-                              id="ollamaApiUrl"
-                              type="url"
-                              value={ollamaApiUrl}
-                              onChange={(e) => setOllamaApiUrl(e.target.value)}
-                              placeholder="http://localhost:11434"
-                              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-cyan-500 dark:focus:ring-cyan-400 focus:border-cyan-500 dark:focus:border-cyan-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                          </div>
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            默认为: http://localhost:11434
-                          </p>
-                        </div>
                         
                         {/* 获取模型按钮区域 */}
                         <div className="flex items-center justify-between space-x-2">
@@ -3588,192 +3410,11 @@ export default function AdminDashboard() {
                             )}
                           </button>
                           
-                          <button
-                            onClick={() => {
-                              setActiveMenu('ollamaModelList');
-                              // 自动展开模型菜单
-                              setExpandedMenus({...expandedMenus, models: true});
-                            }}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                          >
-                            <FiList className="mr-1" /> Ollama模型列表
-                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
                 </>
-              )}
-
-              {/* Ollama模型列表页面 */}
-              {activeMenu === 'ollamaModelList' && (
-                <div className="px-6 py-8">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center">
-                      <FiList className="mr-2" />
-                      Ollama 模型列表
-                    </h1>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                      <FiServer className="mr-1" />
-                      <span title={ollamaApiUrl}>{ollamaApiUrl}</span>
-                    </div>
-                  </div>
-
-                  {/* 状态信息 */}
-                  {ollamaLoading && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="mb-4">
-                        <div className="animate-spin">
-                          <FiLoader size={40} className="text-purple-600" />
-                        </div>
-                      </div>
-                      <p className="text-gray-600 dark:text-gray-400">正在从 Ollama 获取模型列表...</p>
-                    </div>
-                  )}
-                  
-                  {ollamaError && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <FiAlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="text-lg font-medium text-red-800 dark:text-red-300">连接 Ollama 失败</h3>
-                          <div className="mt-2 text-red-600 dark:text-red-400">
-                            <p>{ollamaError}</p>
-                          </div>
-                          <div className="mt-4">
-                            <p className="text-sm text-red-600 dark:text-red-400">
-                              提示: 确保 Ollama 正在运行，并且可以通过 {ollamaApiUrl} 访问。
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* 模型列表 */}
-                  {!ollamaLoading && !ollamaError && (
-                    <>
-                      {ollamaModels.length === 0 ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-                          <FiInfo className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">没有找到模型</h3>
-                          <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            当前 Ollama 实例中没有安装任何模型。
-                          </p>
-                          <a 
-                            href="https://ollama.com/library" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                          >
-                            <FiDownload className="mr-1" /> 浏览 Ollama 模型库
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 gap-6 pb-20">
-                          {ollamaModels.map((model) => (
-                            <div 
-                              key={model.name}
-                              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-                            >
-                              <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
-                                <div className="flex items-center">
-                                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{model.name}</h3>
-                                  <span className="ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                                    {model.details?.family || '模型'}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => {
-                                    if (selectedOllamaModel === model.name) {
-                                      setSelectedOllamaModel(null);
-                                    } else {
-                                      setSelectedOllamaModel(model.name);
-                                      if (!model.details) {
-                                        getOllamaModelDetails(model.name);
-                                      }
-                                    }
-                                  }}
-                                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                >
-                                  {selectedOllamaModel === model.name ? (
-                                    <FiCheckCircle className="h-5 w-5 text-green-500" />
-                                  ) : (
-                                    <FiInfo className="h-5 w-5" />
-                                  )}
-                                </button>
-                              </div>
-                              
-                              <div className="px-6 py-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-gray-500 dark:text-gray-400">大小</p>
-                                    <p className="font-medium text-gray-900 dark:text-white">{formatSize(model.size)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500 dark:text-gray-400">最后修改</p>
-                                    <p className="font-medium text-gray-900 dark:text-white">{formatOllamaDate(model.modified_at)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {selectedOllamaModel === model.name && model.details && (
-                                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
-                                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">模型详情</h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                      <p className="text-gray-500 dark:text-gray-400">格式</p>
-                                      <p className="font-medium text-gray-900 dark:text-white">{model.details.format}</p>
-                                    </div>
-                                    {model.details.parameter_size && (
-                                      <div>
-                                        <p className="text-gray-500 dark:text-gray-400">参数大小</p>
-                                        <p className="font-medium text-gray-900 dark:text-white">{model.details.parameter_size}</p>
-                                      </div>
-                                    )}
-                                    {model.details.quantization_level && (
-                                      <div>
-                                        <p className="text-gray-500 dark:text-gray-400">量化级别</p>
-                                        <p className="font-medium text-gray-900 dark:text-white">{model.details.quantization_level}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {model.details.families && model.details.families.length > 0 && (
-                                    <div className="mt-4">
-                                      <p className="text-gray-500 dark:text-gray-400 mb-1">模型家族</p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {model.details.families.map((family, index) => (
-                                          <span 
-                                            key={index}
-                                            className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300"
-                                          >
-                                            {family}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  <div className="mt-4 flex justify-end">
-                                    <button
-                                      onClick={() => useOllamaModel(model.name)}
-                                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                    >
-                                      <FiSettings className="mr-1" /> 使用此模型
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
               )}
 
               {/* 清除缓存页面 */}
@@ -3822,7 +3463,7 @@ export default function AdminDashboard() {
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">服务器端缓存</h2>
                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      清除服务器上的临时数据和设置缓存（包括Ollama设置）
+                      清除服务器上的临时数据和设置缓存
                     </p>
                     <button
                       onClick={async () => {
@@ -4060,7 +3701,7 @@ export default function AdminDashboard() {
                   "Google.png", "gpt1.png", "gpt2.png", "gpt3.png", "gpt4.png", 
                   "gpt5.png", "gpt6.png", "gpt7.png", "grok2.png", "hailuo.png", 
                   "higress.png", "huggingface.png", "hunyuan.png", "internlm.png", "internlm2.png", 
-                  "kling.png", "llava.png", "Meta.png", "ollama.png", "deepseek.png", "mistral.png", 
+                  "kling.png", "llava.png", "Meta.png", "deepseek.png", "mistral.png", 
                   "nova.png", "palm.png", "perplexity.png", "perplexity2.png", 
                   "poe.png", "Qingyan.png", "Qwen.png", "siliconcloud.png", "spark.png", 
                   "stability.png", "stepfun.png", "suno2.png", "tencent.png", "tiangong.png", 

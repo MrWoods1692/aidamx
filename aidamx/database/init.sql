@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `site_settings` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 创建通用设置表，用于存储Ollama设置等
+-- 创建通用设置表，用于存储系统配置
 CREATE TABLE IF NOT EXISTS `settings` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `setting_key` VARCHAR(255) NOT NULL UNIQUE,

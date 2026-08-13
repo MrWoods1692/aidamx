@@ -55,12 +55,6 @@ export async function POST(request: Request) {
     const connection = await connectToDatabase();
     
     try {
-      // 清除设置中的临时模型数据
-      await connection.execute(`
-        DELETE FROM settings 
-        WHERE setting_key = 'ollama_settings'
-      `);
-      
       // 标记缓存需要刷新
       const timestamp = new Date().toISOString();
       await connection.execute(`

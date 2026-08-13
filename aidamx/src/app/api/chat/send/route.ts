@@ -175,77 +175,31 @@ export async function POST(request: Request) {
         }, { status: 400 });
       }
       
-      // 检查是否是Ollama模型
-      let isOllamaModel = false;
-      let ollamaModelName = '';
-      let ollamaApiUrl = '';
-      
-      if (selectedModelId.startsWith('ollama:')) {
-        isOllamaModel = true;
-        ollamaModelName = selectedModelId.replace('ollama:', '');
-        
-        // 获取Ollama设置
-        const [ollamaSettingsResult] = await connection.execute(`
-          SELECT setting_value
-          FROM settings
-          WHERE setting_key = 'ollama_settings'
-          LIMIT 1
-        `);
-        
-        const ollamaSettingsArray = ollamaSettingsResult as any[];
-        
-        if (ollamaSettingsArray.length === 0) {
-          return NextResponse.json({
-            success: false,
-            message: '未找到Ollama设置，请先配置Ollama'
-          }, { status: 400 });
-        }
-        
-        try {
-          const ollamaSettings = JSON.parse(ollamaSettingsArray[0].setting_value);
-          ollamaApiUrl = ollamaSettings.apiUrl;
-          
-          if (!ollamaApiUrl) {
-            return NextResponse.json({
-              success: false,
-              message: 'Ollama API URL未配置'
-            }, { status: 400 });
-          }
-        } catch (error) {
-          return NextResponse.json({
-            success: false,
-            message: '解析Ollama设置失败'
-          }, { status: 400 });
-        }
-      }
-      
-      // 获取API设置（非Ollama模型使用）
+      // 获取API设置
       let apiEndpoint = '';
       let apiKey = '';
       
-      if (!isOllamaModel) {
-        const [apiSettingsResult] = await connection.execute(`
-          SELECT endpoint, api_key
-          FROM model_settings
-          ORDER BY id DESC
-          LIMIT 1
-        `);
-        
-        const apiSettingsArray = apiSettingsResult as any[];
-        
-        if (apiSettingsArray.length === 0) {
-          return NextResponse.json({
-            success: false,
-            message: '未配置API设置，请先在管理员面板配置API'
-          }, { status: 400 });
-        }
-        
-        const apiSettings = apiSettingsArray[0];
-        apiEndpoint = apiSettings.endpoint.endsWith('/') 
-          ? apiSettings.endpoint 
-          : `${apiSettings.endpoint}/`;
-        apiKey = apiSettings.api_key;
+      const [apiSettingsResult] = await connection.execute(`
+        SELECT endpoint, api_key
+        FROM model_settings
+        ORDER BY id DESC
+        LIMIT 1
+      `);
+      
+      const apiSettingsArray = apiSettingsResult as any[];
+      
+      if (apiSettingsArray.length === 0) {
+        return NextResponse.json({
+          success: false,
+          message: '未配置API设置，请先在管理员面板配置API'
+        }, { status: 400 });
       }
+      
+      const apiSettings = apiSettingsArray[0];
+      apiEndpoint = apiSettings.endpoint.endsWith('/') 
+        ? apiSettings.endpoint 
+        : `${apiSettings.endpoint}/`;
+      apiKey = apiSettings.api_key;
       
       // 创建或使用现有聊天记录
       let chatId: number;
@@ -413,71 +367,33 @@ export async function POST(request: Request) {
       try {
         let aiResponse = '';
         
-        if (isOllamaModel) {
-          // 调用Ollama API
-          const ollamaEndpoint = ollamaApiUrl.endsWith('/') 
-            ? ollamaApiUrl 
-            : `${ollamaApiUrl}/`;
-          
-          // 构建Ollama消息格式
-          const ollamaMessages = messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }));
-          
-          const response = await fetchWithRetry(`${ollamaEndpoint}api/chat`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: ollamaModelName,
-              messages: ollamaMessages,
-              stream: false
-            }),
-          }, 3, 1000);
-          
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Ollama API请求失败(${response.status}): ${errText}`);
-          }
-          
-          const data = await response.json();
-          
-          // 检查Ollama API响应
-          if (!data.message || !data.message.content) {
-            throw new Error('Ollama API返回的数据格式不正确');
-          }
-          
-          aiResponse = data.message.content;
-        } else {
-          // 调用标准OpenAI兼容API
-          const response = await fetchWithRetry(`${apiEndpoint}v1/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: selectedModelId,
-              messages: messages,
-              temperature: 0.7,
-            }),
-          }, 3, 1000);
-          
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`API请求失败(${response.status}): ${errText}`);
-          }
-          
-          const data = await response.json();
-          
-          // 检查API响应
-          if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new Error('API返回的数据格式不正确');
-          }
-          
-          aiResponse = data.choices[0].message.content;
+        // 调用标准OpenAI兼容API
+        const response = await fetchWithRetry(`${apiEndpoint}v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: selectedModelId,
+            messages: messages,
+            temperature: 0.7,
+          }),
+        }, 3, 1000);
+        
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`API请求失败(${response.status}): ${errText}`);
+        }
+        
+        const data = await response.json();
+        
+        // 检查API响应
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+          throw new Error('API返回的数据格式不正确');
+        }
+        
+        aiResponse = data.choices[0].message.content;
         }
         
         // 存储AI回复

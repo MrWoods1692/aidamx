@@ -115,9 +115,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
       const modelsResponse = await fetch('/api/models/list');
       const modelsData = await modelsResponse.json();
       
-      // 新增：检查是否有Ollama模型
-      const ollamaResponse = await fetch('/api/models/ollama-settings');
-      const ollamaData = await ollamaResponse.json();
       
       let modelsList = [];
       
@@ -147,47 +144,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
           } catch (error) {
             console.error('解析缓存模型数据失败:', error);
           }
-        }
-      }
-      
-      // 添加Ollama模型到列表中（如果有）
-      if (ollamaData.success && ollamaData.data) {
-        const { model, apiUrl } = ollamaData.data;
-        
-        if (model) {
-          // 创建Ollama模型对象
-          const ollamaModel = {
-            id: `ollama:${model}`,
-            name: `Ollama: ${model}`,
-            icon: "/images/modelimg/ollama.png", // 使用替代图标，因为没有Ollama专用图标
-            tags: [{
-              text: "Ollama",
-              color: "#2563eb"
-            }]
-          };
-          
-          // 创建一个新的模型列表，进行更严格的去重
-          const uniqueModelsList = [];
-          const modelNameSet = new Set();
-          
-          // 首先添加Ollama模型
-          uniqueModelsList.push(ollamaModel);
-          modelNameSet.add(model.toLowerCase());
-          
-          // 然后添加其他模型，但跳过与Ollama模型名称相似的
-          for (const m of modelsList) {
-            // 提取基本名称（不考虑前缀）
-            const baseName = (m.name || m.id).replace(/^ollama:\s*/i, "").toLowerCase();
-            
-            // 如果这个名称还没有添加过，则添加此模型
-            if (!modelNameSet.has(baseName)) {
-              uniqueModelsList.push(m);
-              modelNameSet.add(baseName);
-            }
-          }
-          
-          // 使用去重后的列表
-          modelsList = uniqueModelsList;
         }
       }
       
@@ -386,10 +342,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
       // 缓存当前选中的模型
       localStorage.setItem('cached_selected_model', modelId);
       
-      // 判断是否是Ollama模型
-      if (modelId.startsWith('ollama:')) {
-        // Ollama模型不需要发送到API，已经在设置时保存了
-        console.log("选择了Ollama模型:", modelId);
         
         // 关闭模型选择器
         setShowModelSelector(false);
@@ -786,8 +738,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <div className="text-sm font-medium truncate">{model.name || model.id}</div>
-                      {model.name && !model.id.startsWith('ollama:') && 
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{model.id}</div>
+                      {model.name &&                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{model.id}</div>
                       }
                       
                       {/* 显示标签 */}
