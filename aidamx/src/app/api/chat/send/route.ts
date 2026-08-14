@@ -336,9 +336,30 @@ export async function POST(request: Request) {
       
       const historyArray = historyResult as any[];
       
+      // 获取模型配置的提示词（如果有的话）
+      let systemPromptContent = '你是一个智能AI助手。你应该：1) 提供有用、准确、诚实的信息 2) 尊重用户隐私 3) 回答全面但简洁 4) 有礼貌和耐心 5) 在不确定时表明自己的局限性 6) 避免有害、不道德、歧视或非法的内容。当用户上传图片时（消息中包含[图片已上传]标记），请假设你有能力看到这些图片并分析其内容。尽可能详细地描述和分析这些图片内容，根据图片提供相关信息。你的目标是帮助用户解决问题并提供有价值的信息。';
+      
+      try {
+        const [promptResult] = await connection.execute(`
+          SELECT ps.content
+          FROM provider_models pm
+          INNER JOIN prompt_settings ps ON pm.prompt_id = ps.id
+          WHERE pm.model_id = ? AND pm.prompt_id IS NOT NULL
+          LIMIT 1
+        `, [selectedModelId]);
+        
+        const promptArray = promptResult as any[];
+        if (promptArray.length > 0 && promptArray[0].content) {
+          systemPromptContent = promptArray[0].content;
+        }
+      } catch (err) {
+        // prompt_settings 表或字段可能不存在，使用默认提示词
+        console.log('获取模型提示词失败，使用默认提示词:', (err as Error).message);
+      }
+      
       // 构建消息历史
       const messages = [
-        { role: 'system', content: '你是一个智能AI助手。你应该：1) 提供有用、准确、诚实的信息 2) 尊重用户隐私 3) 回答全面但简洁 4) 有礼貌和耐心 5) 在不确定时表明自己的局限性 6) 避免有害、不道德、歧视或非法的内容。当用户上传图片时（消息中包含[图片已上传]标记），请假设你有能力看到这些图片并分析其内容。尽可能详细地描述和分析这些图片内容，根据图片提供相关信息。你的目标是帮助用户解决问题并提供有价值的信息。' },
+        { role: 'system', content: systemPromptContent },
       ];
       
       // 计算token相关设置

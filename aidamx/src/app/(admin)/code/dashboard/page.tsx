@@ -36,7 +36,7 @@ const fadeInUpKeyframes = `
 `;
 
 // 定义菜单类型
-type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'changePassword' | 'systemSettings' | 'clearCache' | 'providers' | 'providerModels';
+type MenuType = 'dashboard' | 'users' | 'chats' | 'system' | 'settings' | 'changePassword' | 'systemSettings' | 'clearCache' | 'providers' | 'providerModels' | 'prompts';
 
 // 菜单项接口
 interface MenuItem {
@@ -208,6 +208,7 @@ export default function AdminDashboard() {
     originalName: string;
     isEnabled: boolean;
     sortOrder: number;
+    promptId: number | null;
   }>>([]);
   const [providerModelsLoading, setProviderModelsLoading] = useState(false);
   const [showAddProviderModel, setShowAddProviderModel] = useState(false);
@@ -216,6 +217,29 @@ export default function AdminDashboard() {
     displayName: ''
   });
   const [editingModelName, setEditingModelName] = useState<{modelId: string, displayName: string} | null>(null);
+  
+  // 提示词管理状态
+  const [prompts, setPrompts] = useState<Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    content: string;
+    isActive: boolean;
+    sortOrder: number;
+    modelCount: number;
+    created_at: string;
+  }>>([]);
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [showPromptForm, setShowPromptForm] = useState(false);
+  const [promptForm, setPromptForm] = useState({
+    name: '',
+    description: '',
+    content: '',
+    sortOrder: 0
+  });
+  const [editingPrompt, setEditingPrompt] = useState<number | null>(null);
+  const [promptError, setPromptError] = useState('');
+  const [showPromptSelector, setShowPromptSelector] = useState<{modelId: string, providerId: number} | null>(null);
   
   // 存储Toast定时器引用
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -566,7 +590,8 @@ export default function AdminDashboard() {
       icon: <FiServer />, 
       label: '服务商管理',
       subMenu: [
-        { id: 'providerModels', icon: <FiList />, label: '服务商模型', parentId: 'providers' }
+        { id: 'providerModels', icon: <FiList />, label: '服务商模型', parentId: 'providers' },
+        { id: 'prompts', icon: <FiMessageSquare />, label: '提示词管理', parentId: 'providers' }
       ]
     },
   ];
@@ -1322,6 +1347,8 @@ export default function AdminDashboard() {
       if (!selectedProvider) {
         fetchProviders();
       }
+    } else if (menuId === 'prompts') {
+      fetchPrompts();
     }
     
     if (window.innerWidth < 768) {
@@ -1595,6 +1622,185 @@ export default function AdminDashboard() {
         showToast({
           title: '更新失败',
           description: data.message,
+          status: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: '更新失败',
+        description: error.message,
+        status: 'error'
+      });
+    }
+  };
+
+  // ===== 提示词管理函数 =====
+  
+  // 获取提示词列表
+  const fetchPrompts = async () => {
+    setPromptsLoading(true);
+    setPromptError('');
+    
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('获取提示词列表失败');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPrompts(data.data);
+      } else {
+        setPromptError(data.message || '获取提示词列表失败');
+      }
+    } catch (error: any) {
+      setPromptError(error.message);
+      console.error('获取提示词列表错误:', error);
+    } finally {
+      setPromptsLoading(false);
+    }
+  };
+
+  // 创建提示词
+  const handleCreatePrompt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!promptForm.name || !promptForm.content) {
+      setPromptError('请填写提示词名称和内容');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(promptForm),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPromptForm({ name: '', description: '', content: '', sortOrder: 0 });
+        setShowPromptForm(false);
+        fetchPrompts();
+        showToast({
+          title: '创建成功',
+          description: '提示词已创建',
+          status: 'success'
+        });
+      } else {
+        setPromptError(data.message || '创建失败');
+      }
+    } catch (error: any) {
+      setPromptError(error.message);
+    }
+  };
+
+  // 更新提示词
+  const handleUpdatePrompt = async (promptId: number) => {
+    try {
+      const response = await fetch(`/api/admin/prompts/${promptId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(promptForm),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setEditingPrompt(null);
+        setPromptForm({ name: '', description: '', content: '', sortOrder: 0 });
+        fetchPrompts();
+        showToast({
+          title: '更新成功',
+          description: '提示词已更新',
+          status: 'success'
+        });
+      } else {
+        setPromptError(data.message || '更新失败');
+      }
+    } catch (error: any) {
+      setPromptError(error.message);
+    }
+  };
+
+  // 删除提示词
+  const handleDeletePrompt = async (promptId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: '删除提示词',
+      message: '确定要删除此提示词吗？',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/prompts/${promptId}`, {
+            method: 'DELETE',
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            fetchPrompts();
+            showToast({
+              title: '删除成功',
+              description: '提示词已删除',
+              status: 'success'
+            });
+          } else {
+            showToast({
+              title: '删除失败',
+              description: data.message || '删除失败',
+              status: 'error'
+            });
+          }
+        } catch (error: any) {
+          showToast({
+            title: '删除失败',
+            description: error.message,
+            status: 'error'
+          });
+        }
+      }
+    });
+  };
+
+  // 为模型分配提示词
+  const handleAssignPromptToModel = async (providerId: number, modelId: string, promptId: number | null) => {
+    try {
+      const response = await fetch(`/api/admin/providers/${providerId}/models/${modelId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ providerId, modelId, promptId }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowPromptSelector(null);
+        fetchProviderModels(providerId);
+        showToast({
+          title: '更新成功',
+          description: '模型提示词已更新',
+          status: 'success'
+        });
+      } else {
+        showToast({
+          title: '更新失败',
+          description: data.message || '更新失败',
           status: 'error'
         });
       }
@@ -3439,11 +3645,191 @@ export default function AdminDashboard() {
                                     <FiEdit2 />
                                   </button>
                                   <button
+                                    onClick={() => {
+                                      if (prompts.length === 0) fetchPrompts();
+                                      setShowPromptSelector({ modelId: model.modelId, providerId: selectedProvider });
+                                    }}
+                                    className={`p-2 rounded-lg ${model.promptId ? 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-gray-400 hover:text-emerald-600 dark:text-gray-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
+                                    title={model.promptId ? '已分配提示词' : '分配提示词'}
+                                  >
+                                    <FiMessageSquare />
+                                  </button>
+                                  <button
                                     onClick={() => handleToggleModelEnabled(selectedProvider, model.modelId, model.isEnabled)}
                                     className={`p-2 rounded-lg ${model.isEnabled ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                                     title={model.isEnabled ? '禁用模型' : '启用模型'}
                                   >
                                     {model.isEnabled ? <FiCheck /> : <FiX />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 提示词管理页面 */}
+              {activeMenu === 'prompts' && (
+                <>
+                  <div className="mb-6"></div>
+                  
+                  <div className="relative overflow-hidden bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-md group border border-emerald-100/50 dark:border-emerald-900/30 transform-gpu mb-6">
+                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 dark:from-emerald-400/10 dark:to-emerald-600/10 blur-md"></div>
+                    <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-400/20 to-emerald-600/20 dark:from-emerald-400/5 dark:to-emerald-600/5 blur-md"></div>
+                    
+                    <div className="p-6 relative z-10">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center">
+                          <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center">
+                            <div className="p-2.5 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md mr-2">
+                              <FiMessageSquare className="text-lg" />
+                            </div>
+                            <span>提示词管理</span>
+                          </h2>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingPrompt(null);
+                            setPromptForm({ name: '', description: '', content: '', sortOrder: 0 });
+                            setShowPromptForm(!showPromptForm);
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-md flex items-center"
+                        >
+                          <FiPlus className="mr-2" />
+                          {showPromptForm ? '取消' : '新建提示词'}
+                        </button>
+                      </div>
+
+                      {/* 新建/编辑提示词表单 */}
+                      {showPromptForm && (
+                        <div className="mb-6 p-4 bg-white dark:bg-gray-900/50 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                          <form onSubmit={editingPrompt ? () => handleUpdatePrompt(editingPrompt) : handleCreatePrompt}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">名称 *</label>
+                                <input
+                                  type="text"
+                                  value={promptForm.name}
+                                  onChange={(e) => setPromptForm({...promptForm, name: e.target.value})}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                  placeholder="例如：代码助手"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">排序</label>
+                                <input
+                                  type="number"
+                                  value={promptForm.sortOrder}
+                                  onChange={(e) => setPromptForm({...promptForm, sortOrder: parseInt(e.target.value) || 0})}
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+                              <input
+                                type="text"
+                                value={promptForm.description}
+                                onChange={(e) => setPromptForm({...promptForm, description: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                placeholder="提示词用途说明"
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">提示词内容 *</label>
+                              <textarea
+                                value={promptForm.content}
+                                onChange={(e) => setPromptForm({...promptForm, content: e.target.value})}
+                                rows={6}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                placeholder="输入system prompt内容..."
+                              />
+                            </div>
+                            {promptError && (
+                              <p className="text-sm text-red-600 dark:text-red-400 mb-4">{promptError}</p>
+                            )}
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowPromptForm(false);
+                                  setEditingPrompt(null);
+                                  setPromptForm({ name: '', description: '', content: '', sortOrder: 0 });
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                              >
+                                取消
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+                              >
+                                {editingPrompt ? '保存修改' : '创建提示词'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {/* 提示词列表 */}
+                      {promptsLoading ? (
+                        <div className="flex justify-center items-center h-32">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                        </div>
+                      ) : prompts.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          <FiMessageSquare className="mx-auto mb-2 text-3xl" />
+                          <p>暂无提示词，请创建第一个提示词</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {prompts.map((prompt) => (
+                            <div key={prompt.id} className="p-4 bg-white dark:bg-gray-900/50 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:shadow-md transition-shadow">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center flex-1 min-w-0">
+                                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0">
+                                    <FiMessageSquare />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="font-medium text-gray-800 dark:text-white truncate">{prompt.name}</h4>
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                                        {prompt.modelCount} 个模型使用
+                                      </span>
+                                    </div>
+                                    {prompt.description && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">{prompt.description}</p>
+                                    )}
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{prompt.content.substring(0, 80)}...</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditingPrompt(prompt.id);
+                                      setPromptForm({
+                                        name: prompt.name,
+                                        description: prompt.description || '',
+                                        content: prompt.content,
+                                        sortOrder: prompt.sortOrder
+                                      });
+                                      setShowPromptForm(true);
+                                    }}
+                                    className="p-2 text-gray-500 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                                    title="编辑提示词"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePrompt(prompt.id)}
+                                    className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30"
+                                    title="删除提示词"
+                                  >
+                                    <FiTrash2 />
                                   </button>
                                 </div>
                               </div>
@@ -3555,6 +3941,56 @@ export default function AdminDashboard() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-700 border border-transparent rounded-lg hover:bg-red-700 dark:hover:bg-red-800 focus:outline-none"
               >
                 {confirmDialog.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 提示词选择对话框 */}
+      {showPromptSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden transform animate-fade-in-up">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                选择提示词
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                为模型分配一个提示词设定
+              </p>
+            </div>
+            <div className="px-6 py-4 max-h-64 overflow-y-auto custom-scrollbar">
+              <button
+                onClick={() => {
+                  handleAssignPromptToModel(showPromptSelector.providerId, showPromptSelector.modelId, null);
+                }}
+                className="w-full px-4 py-3 text-left rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 mb-2 flex items-center"
+              >
+                <FiX className="mr-3 text-gray-400" />
+                <span className="text-gray-700 dark:text-gray-300">无（使用默认提示词）</span>
+              </button>
+              {prompts.map((prompt) => (
+                <button
+                  key={prompt.id}
+                  onClick={() => handleAssignPromptToModel(showPromptSelector.providerId, showPromptSelector.modelId, prompt.id)}
+                  className="w-full px-4 py-3 text-left rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 mb-2 flex items-center"
+                >
+                  <FiMessageSquare className="mr-3 text-emerald-500" />
+                  <div className="text-left">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{prompt.name}</span>
+                    {prompt.description && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{prompt.description}</p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/40 flex justify-end">
+              <button 
+                onClick={() => setShowPromptSelector(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none"
+              >
+                关闭
               </button>
             </div>
           </div>

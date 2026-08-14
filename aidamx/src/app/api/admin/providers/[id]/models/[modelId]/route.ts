@@ -43,7 +43,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: '未授权访问' }, { status: 401 });
     }
 
-    const { providerId, modelId, displayName, isEnabled, sortOrder } = await request.json();
+    const { providerId, modelId, displayName, isEnabled, sortOrder, promptId } = await request.json();
 
     if (!providerId || !modelId) {
       return NextResponse.json({
@@ -82,6 +82,10 @@ export async function PUT(request: Request) {
         updateFields.push('sort_order = ?');
         updateValues.push(sortOrder);
       }
+      if (promptId !== undefined) {
+        updateFields.push('prompt_id = ?');
+        updateValues.push(promptId);
+      }
 
       if (updateFields.length > 0) {
         updateFields.push('updated_at = NOW()');
@@ -96,7 +100,7 @@ export async function PUT(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: '模型显示名称更新成功'
+        message: '模型配置更新成功'
       });
     } finally {
       await connection.end();
